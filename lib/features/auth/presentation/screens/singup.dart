@@ -83,9 +83,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      debugPrint('✅ SignUp: Registration successful!');
-      context.go('/lastintro');
-    } else {
+  debugPrint('✅ SignUp: Registration successful! Sending to verify...');
+
+  // ── Save email for verify-code screen ──────────
+  ref.read(otpEmailProvider.notifier).state = _emailController.text.trim();
+  ref.read(otpTypeProvider.notifier).state  = 'email';
+
+ context.go('/verify-code', extra: '/lastintro');// ← was '/lastintro'
+} else {
       final error = ref.read(authProvider).error;
       debugPrint('❌ SignUp Error: $error');
       ScaffoldMessenger.of(context).showSnackBar(

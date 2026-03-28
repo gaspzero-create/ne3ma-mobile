@@ -72,7 +72,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (success) {
       debugPrint('✅ Login: Successfully logged in!');
-      context.go('/settings');
+      context.go('/home');
     } else {
       final error = ref.read(authProvider).error;
       debugPrint('❌ Login Error: $error');

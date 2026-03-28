@@ -84,7 +84,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
       if (success) {
         debugPrint('✅ ForgotPassword: OTP sent! Navigating to /verify-code');
-        context.go('/verify-code');
+       context.go('/verify-code', extra: '/home');
       } else {
         final error = ref.read(authProvider).error;
         debugPrint('❌ ForgotPassword: Failed - $error');

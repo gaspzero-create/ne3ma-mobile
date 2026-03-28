@@ -9,6 +9,7 @@ import 'package:ne3ma/features/auth/presentation/screens/singup.dart';
 import 'package:ne3ma/features/auth/presentation/screens/splash_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/settings_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/profile_screens.dart';
+import 'package:ne3ma/features/home/presentation/screens/home_screen.dart';
 
 class AppRouter {
   AppRouter._();
@@ -84,13 +85,17 @@ class AppRouter {
       ),
 
       // ── Verify Code — slide from right ─────────
-      GoRoute(
-        path: verifyCode,
-        pageBuilder: (context, state) => _slideRightPage(
-          state: state,
-          child: const VerifyCodeScreen(),
-        ),
-      ),
+     GoRoute(
+  path: '/verify-code',
+  pageBuilder: (context, state) {
+    // Read extra param - where to go after verify
+    final redirect = state.extra as String? ?? '/lastintro';
+    return _slideRightPage(
+      state: state,
+      child: VerifyCodeScreen(redirectTo: redirect),
+    );
+  },
+),
 
       // ── Settings — slide from bottom ───────────
       GoRoute(
@@ -109,6 +114,85 @@ class AppRouter {
           child: const EditProfileScreen(),
         ),
       ),
+   
+
+// Add inside routes list:
+ShellRoute(
+  builder: (context, state, child) => HomeScreen(child: child),
+  routes: [
+    GoRoute(
+      path: '/home',
+      pageBuilder: (context, state) => _fadePage(
+        state: state,
+        child: const Center(child: Text('Home')), // Sprint 3
+      ),
+    ),
+    GoRoute(
+      path: '/messages',
+      pageBuilder: (context, state) => _fadePage(
+        state: state,
+        child: const Center(child: Text('Messages')), // Sprint 3
+      ),
+    ),
+    GoRoute(
+      path: '/add',
+      pageBuilder: (context, state) => _fadePage(
+        state: state,
+        child: const Center(child: Text('Add Donation')), // Sprint 3
+      ),
+    ),
+    GoRoute(
+      path: '/special',
+      pageBuilder: (context, state) => _fadePage(
+        state: state,
+        child: const Center(child: Text('Special')), // Sprint 3
+      ),
+    ),
+    GoRoute(
+      path: '/profile-tab',
+      pageBuilder: (context, state) => _fadePage(
+        state: state,
+        child: const Center(child: Text('Profile')), // Sprint 3
+      ),
+    ),
+  ],
+),
+
+//       ShellRoute(
+//   builder: (context, state, child) {
+//     return HomeScreen(child: child);
+//   },
+//   routes: [
+//     GoRoute(
+//       path: '/home',
+//       pageBuilder: (context, state) => _fadePage(
+//         state: state,
+//         child: const HomeTab(),
+//       ),
+//     ),
+//     GoRoute(
+//       path: '/messages',
+//       pageBuilder: (context, state) => _fadePage(
+//         state: state,
+//         child: const MessagesTab(),
+//       ),
+//     ),
+//     GoRoute(
+//       path: '/special',
+//       pageBuilder: (context, state) => _fadePage(
+//         state: state,
+//         child: const SpecialTab(),
+//       ),
+//     ),
+//     GoRoute(
+//       path: '/profile-tab',
+//       pageBuilder: (context, state) => _fadePage(
+//         state: state,
+//         child: const ProfileTab(),
+//       ),
+//     ),
+//   ],
+// ),
     ],
   );
 
@@ -217,4 +301,5 @@ class AppRouter {
       },
     );
   }
+
 }

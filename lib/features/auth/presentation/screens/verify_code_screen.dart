@@ -6,7 +6,12 @@ import 'package:ne3ma/core/widgets/gasp_button.dart';
 import 'package:ne3ma/features/auth/providers/auth_provider.dart';
 
 class VerifyCodeScreen extends ConsumerStatefulWidget {
-  const VerifyCodeScreen({super.key});
+const VerifyCodeScreen({
+    super.key,
+    this.redirectTo = '/lastintro',  // default
+  });
+
+  final String redirectTo;
 
   @override
   ConsumerState<VerifyCodeScreen> createState() => _VerifyCodeScreenState();
@@ -86,10 +91,10 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
 
       if (!mounted) return;
 
-      if (success) {
-        debugPrint('✅ VerifyCode: OTP verified! Navigating to /home');
-        context.go('/home');
-      } else {
+    if (success) {
+  debugPrint('✅ VerifyCode: Going to ${widget.redirectTo}');
+  context.go(widget.redirectTo);
+}else {
         final error = ref.read(authProvider).error;
         debugPrint('❌ VerifyCode: Failed - $error');
         ScaffoldMessenger.of(context).showSnackBar(
