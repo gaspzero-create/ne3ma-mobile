@@ -138,7 +138,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
         ),
       );
-      context.go('/settings');
+      context.go('/profile-tab');
     } else {
       final error = ref.read(profileProvider).error;
       debugPrint('❌ EditProfile: Error - $error');

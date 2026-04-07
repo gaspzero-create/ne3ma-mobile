@@ -55,9 +55,11 @@ class SettingsScreen extends ConsumerWidget {
   // ── Body ───────────────────────────────────────
   Widget _buildBody(BuildContext context, WidgetRef ref, ProfileModel? profile) {
     return ListView(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.screenPadding,
-        vertical: AppSizes.md,
+      padding: EdgeInsets.only(
+        left: AppSizes.screenPadding,
+        right: AppSizes.screenPadding,
+        top: AppSizes.md,
+        bottom: AppSizes.xl + 80, // Extra padding for bottom nav bar
       ),
       children: [
 

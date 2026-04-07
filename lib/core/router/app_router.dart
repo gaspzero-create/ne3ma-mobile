@@ -7,9 +7,17 @@ import 'package:ne3ma/features/auth/presentation/screens/lastIntro.dart';
 import 'package:ne3ma/features/auth/presentation/screens/login.dart';
 import 'package:ne3ma/features/auth/presentation/screens/singup.dart';
 import 'package:ne3ma/features/auth/presentation/screens/splash_screen.dart';
+import 'package:ne3ma/features/chat/presentation/screens/messages_tab.dart';
+import 'package:ne3ma/features/donations/presentation/screens/add_donation_screen.dart';
+import 'package:ne3ma/features/donations/presentation/screens/donation_detail_screen.dart';
+import 'package:ne3ma/features/donations/data/models/donation_model.dart';
+import 'package:ne3ma/features/donations/presentation/screens/special_tab.dart';
+import 'package:ne3ma/features/home/presentation/screens/home_screen.dart';
+import 'package:ne3ma/features/home/presentation/screens/home_tab.dart';
 import 'package:ne3ma/features/profile/presentation/screens/settings_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/profile_screens.dart';
-import 'package:ne3ma/features/home/presentation/screens/home_screen.dart';
+
+import 'package:ne3ma/features/home/presentation/screens/home_tab.dart';
 
 class AppRouter {
   AppRouter._();
@@ -39,7 +47,6 @@ class AppRouter {
         ),
       ),
 
-      // ── Intro — slide from right ───────────────
       GoRoute(
         path: intro,
         pageBuilder: (context, state) => _slideRightPage(
@@ -48,7 +55,6 @@ class AppRouter {
         ),
       ),
 
-      // ── Last Intro — slide from right ──────────
       GoRoute(
         path: lastintro,
         pageBuilder: (context, state) => _slideRightPage(
@@ -57,7 +63,6 @@ class AppRouter {
         ),
       ),
 
-      // ── Login — fade + scale ───────────────────
       GoRoute(
         path: login,
         pageBuilder: (context, state) => _fadeScalePage(
@@ -66,7 +71,6 @@ class AppRouter {
         ),
       ),
 
-      // ── Sign Up — slide from right ─────────────
       GoRoute(
         path: signup,
         pageBuilder: (context, state) => _slideRightPage(
@@ -75,7 +79,6 @@ class AppRouter {
         ),
       ),
 
-      // ── Forgot Password — slide from right ─────
       GoRoute(
         path: forgotPassword,
         pageBuilder: (context, state) => _slideRightPage(
@@ -84,20 +87,17 @@ class AppRouter {
         ),
       ),
 
-      // ── Verify Code — slide from right ─────────
-     GoRoute(
-  path: '/verify-code',
-  pageBuilder: (context, state) {
-    // Read extra param - where to go after verify
-    final redirect = state.extra as String? ?? '/lastintro';
-    return _slideRightPage(
-      state: state,
-      child: VerifyCodeScreen(redirectTo: redirect),
-    );
-  },
-),
+      GoRoute(
+        path: verifyCode,
+        pageBuilder: (context, state) {
+          final redirect = state.extra as String? ?? lastintro;
+          return _slideRightPage(
+            state: state,
+            child: VerifyCodeScreen(redirectTo: redirect),
+          );
+        },
+      ),
 
-      // ── Settings — slide from bottom ───────────
       GoRoute(
         path: settings,
         pageBuilder: (context, state) => _slideUpPage(
@@ -106,7 +106,6 @@ class AppRouter {
         ),
       ),
 
-      // ── Profile — slide from right ─────────────
       GoRoute(
         path: profile,
         pageBuilder: (context, state) => _slideRightPage(
@@ -114,49 +113,58 @@ class AppRouter {
           child: const EditProfileScreen(),
         ),
       ),
-   
 
-// Add inside routes list:
-ShellRoute(
-  builder: (context, state, child) => HomeScreen(child: child),
-  routes: [
-    GoRoute(
-      path: '/home',
-      pageBuilder: (context, state) => _fadePage(
-        state: state,
-        child: const Center(child: Text('Home')), // Sprint 3
+      ShellRoute(
+        builder: (context, state, child) => HomeScreen(child: child),
+        routes: [
+          GoRoute(
+            path: '/home',
+            pageBuilder: (context, state) => _fadePage(
+              state: state,
+              child: const HomeTab(),
+            ),
+          ),
+          GoRoute(
+            path: '/messages',
+            pageBuilder: (context, state) => _fadePage(
+              state: state,
+              child: const MessagesTab(),
+            ),
+          ),
+          GoRoute(
+            path: '/add',
+            pageBuilder: (context, state) => _fadePage(
+              state: state,
+              child: const AddPostScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/special',
+            pageBuilder: (context, state) => _fadePage(
+              state: state,
+              child: const SpecialTab(),
+            ),
+          ),
+          GoRoute(
+            path: '/profile-tab',
+            pageBuilder: (context, state) => _fadePage(
+              state: state,
+              child: const SettingsScreen(),
+            ),
+          ),
+        ],
       ),
-    ),
-    GoRoute(
-      path: '/messages',
-      pageBuilder: (context, state) => _fadePage(
-        state: state,
-        child: const Center(child: Text('Messages')), // Sprint 3
+
+      GoRoute(
+        path: '/donation/:id',
+        pageBuilder: (context, state) {
+          final donation = state.extra as DonationModel;
+          return _slideRightPage(
+            state: state,
+            child: DonationDetailScreen(donation: donation),
+          );
+        },
       ),
-    ),
-    GoRoute(
-      path: '/add',
-      pageBuilder: (context, state) => _fadePage(
-        state: state,
-        child: const Center(child: Text('Add Donation')), // Sprint 3
-      ),
-    ),
-    GoRoute(
-      path: '/special',
-      pageBuilder: (context, state) => _fadePage(
-        state: state,
-        child: const Center(child: Text('Special')), // Sprint 3
-      ),
-    ),
-    GoRoute(
-      path: '/profile-tab',
-      pageBuilder: (context, state) => _fadePage(
-        state: state,
-        child: const Center(child: Text('Profile')), // Sprint 3
-      ),
-    ),
-  ],
-),
 
 //       ShellRoute(
 //   builder: (context, state, child) {

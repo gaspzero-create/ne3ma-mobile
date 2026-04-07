@@ -78,15 +78,14 @@ class BottomNavBar extends StatelessWidget {
             _buildAddButton(context),
 
             // ── Special ───────────────────────────
-            _buildNavItem(
-              context: context,
-              index: 3,
-              icon: Icons.favorite_border_rounded,
-              activeIcon: Icons.favorite_rounded,
-              label: 'Special',
-              badgeCount: 2,
-            ),
-
+         _buildNavItem(
+  context: context,
+  index: 3,
+  icon: Icons.bookmark_border_rounded,      // ← new icon
+  activeIcon: Icons.bookmark_rounded,        // ← new icon
+  label: 'Reserved',                         // ← new label
+  badgeCount: 2,
+),
             // ── Profile ───────────────────────────
             _buildNavItem(
               context: context,
@@ -117,7 +116,7 @@ class BottomNavBar extends StatelessWidget {
       onTap: () => _onTap(context, index),
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 60,
+        width: 70,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -180,6 +179,9 @@ class BottomNavBar extends StatelessWidget {
             // ── Label ────────────────────────────
             Text(
               label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isActive

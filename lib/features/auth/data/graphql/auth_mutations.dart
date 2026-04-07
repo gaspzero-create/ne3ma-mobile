@@ -60,8 +60,7 @@ static const String sendEmailOtp = '''
         refreshToken
         user {
           id
-          firstName
-          lastName
+          fullName
           email
           role
           status
@@ -85,8 +84,7 @@ static const String sendEmailOtp = '''
         refreshToken
         user {
           id
-          firstName
-          lastName
+          fullName
           email
           role
           status

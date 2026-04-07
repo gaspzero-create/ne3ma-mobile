@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class GraphQLClient {
   GraphQLClient._();
 
-  static const String _baseUrl = 'https://ne3ma-backend.onrender.com/graphql';
+  static const String _baseUrl = 'https://ne3ma-prod-service-helo.up.railway.app/graphql';
   static const _storage = FlutterSecureStorage();
 
   static Dio get dio {
