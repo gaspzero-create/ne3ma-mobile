@@ -15,7 +15,7 @@ class DonationFilter {
 
   const DonationFilter({
     this.category,
-    this.radiusKm = 5.0,
+    this.radiusKm = 1000.0,
   });
 
   DonationFilter copyWith({
@@ -233,9 +233,6 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
         expiresAt:          expiresAt,
         description:        description,
         imageBase64:        imageBase64,
-        lat:                lat,
-        lng:                lng,
-        meetingZone:        meetingZone,
         checklistConfirmed: checklistConfirmed,
       );
       debugPrint('✅ DonationsProvider: Created - ${donation.id}');

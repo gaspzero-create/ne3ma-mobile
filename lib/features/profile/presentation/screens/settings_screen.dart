@@ -7,14 +7,13 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../auth/providers/auth_provider.dart';
 
-
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileState = ref.watch(profileProvider);
-    final profile      = profileState.profile;
+    final profile = profileState.profile;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -53,7 +52,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   // ── Body ───────────────────────────────────────
-  Widget _buildBody(BuildContext context, WidgetRef ref, ProfileModel? profile) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    ProfileModel? profile,
+  ) {
     return ListView(
       padding: EdgeInsets.only(
         left: AppSizes.screenPadding,
@@ -62,7 +65,6 @@ class SettingsScreen extends ConsumerWidget {
         bottom: AppSizes.xl + 80, // Extra padding for bottom nav bar
       ),
       children: [
-
         // ── Profile Header ───────────────────────
         _buildProfileHeader(profile),
         const SizedBox(height: AppSizes.xl),
@@ -75,22 +77,22 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsItem(
               icon: Icons.person_outline_rounded,
               label: 'Edit profile',
-              onTap: () => context.go('/profile'),
+              onTap: () async => context.go('/profile'),
             ),
             _SettingsItem(
               icon: Icons.security_outlined,
               label: 'Security',
-              onTap: () {},
+              onTap: () async {},
             ),
             _SettingsItem(
               icon: Icons.notifications_outlined,
               label: 'Notifications',
-              onTap: () {},
+              onTap: () async {},
             ),
             _SettingsItem(
               icon: Icons.lock_outline_rounded,
               label: 'Privacy',
-              onTap: () {},
+              onTap: () async {},
               showDivider: false,
             ),
           ],
@@ -106,17 +108,17 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsItem(
               icon: Icons.credit_card_outlined,
               label: 'My Subscription',
-              onTap: () {},
+              onTap: () async {},
             ),
             _SettingsItem(
               icon: Icons.help_outline_rounded,
               label: 'Help & Support',
-              onTap: () {},
+              onTap: () async {},
             ),
             _SettingsItem(
               icon: Icons.info_outline_rounded,
               label: 'Terms and Policies',
-              onTap: () {},
+              onTap: () async {},
               showDivider: false,
             ),
           ],
@@ -132,14 +134,22 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsItem(
               icon: Icons.flag_outlined,
               label: 'Report a problem',
-              onTap: () {},
+              onTap: () async {},
             ),
             _SettingsItem(
               icon: Icons.logout_rounded,
               label: 'Log out',
               labelColor: AppColors.error,
               iconColor: AppColors.error,
-              onTap: () => _showLogoutDialog(context, ref),
+              onTap: () async {
+                final shouldLogout = await _showLogoutConfirmDialog(context);
+                if (shouldLogout && context.mounted) {
+                  await ref.read(authProvider.notifier).logout();
+                  if (context.mounted) {
+                    context.go('/login');
+                  }
+                }
+              },
               showDivider: false,
             ),
           ],
@@ -163,9 +173,7 @@ class SettingsScreen extends ConsumerWidget {
             color: AppColors.surfaceVariant,
             border: Border.all(color: AppColors.border, width: 1.5),
           ),
-          child: ClipOval(
-            child: _buildAvatarImage(profile?.avatarUrl),
-          ),
+          child: ClipOval(child: _buildAvatarImage(profile?.avatarUrl)),
         ),
         const SizedBox(width: AppSizes.md),
 
@@ -232,52 +240,58 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  // ── Logout Dialog ──────────────────────────────
-  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+  // ── Logout Confirmation Dialog ──────────────────
+  Future<bool> _showLogoutConfirmDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        ),
-        title: const Text(
-          'Log out',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ),
-        content: const Text(
-          'Are you sure you want to log out?',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
+          backgroundColor: AppColors.surface,
+          title: const Text(
+            'Log Out?',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
             ),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              debugPrint('📤 Settings: Logging out...');
-              await ref.read(authProvider.notifier).logout();
-              debugPrint('✅ Settings: Logged out');
-              if (context.mounted) context.go('/login');
-            },
-            child: const Text(
-              'Log out',
-              style: TextStyle(
-                color: AppColors.error,
-                fontWeight: FontWeight.w700,
+          content: const Text(
+            'Are you sure you want to log out? You\'ll need to sign in again to access your account.',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text(
+                'Log Out',
+                style: TextStyle(
+                  color: AppColors.error,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
+    return result ?? false;
   }
 }
 
@@ -327,19 +341,19 @@ class _SettingsItem extends StatelessWidget {
     this.showDivider = true,
   });
 
-  final IconData    icon;
-  final String      label;
-  final VoidCallback onTap;
-  final Color?      labelColor;
-  final Color?      iconColor;
-  final bool        showDivider;
+  final IconData icon;
+  final String label;
+  final Future<void> Function()? onTap;
+  final Color? labelColor;
+  final Color? iconColor;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         InkWell(
-          onTap: onTap,
+          onTap: onTap != null ? () async => await onTap!() : null,
           borderRadius: BorderRadius.circular(AppSizes.radiusLg),
           child: Padding(
             padding: const EdgeInsets.symmetric(
@@ -348,11 +362,7 @@ class _SettingsItem extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  size: 22,
-                  color: iconColor ?? AppColors.textPrimary,
-                ),
+                Icon(icon, size: 22, color: iconColor ?? AppColors.textPrimary),
                 const SizedBox(width: AppSizes.md),
                 Expanded(
                   child: Text(
@@ -378,10 +388,7 @@ class _SettingsItem extends StatelessWidget {
             padding: const EdgeInsets.only(
               left: AppSizes.md + 22 + AppSizes.md,
             ),
-            child: Divider(
-              height: 1,
-              color: AppColors.border.withOpacity(0.6),
-            ),
+            child: Divider(height: 1, color: AppColors.border.withOpacity(0.6)),
           ),
       ],
     );

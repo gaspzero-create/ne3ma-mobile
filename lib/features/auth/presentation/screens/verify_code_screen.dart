@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ne3ma/core/constants/app_colors.dart';
+import 'dart:math' as math;
+import 'package:flutter/services.dart';
 import 'package:ne3ma/core/widgets/gasp_button.dart';
 import 'package:ne3ma/features/auth/providers/auth_provider.dart';
 
@@ -25,8 +27,8 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
   @override
   void initState() {
     super.initState();
-    _codeControllers = List.generate(4, (_) => TextEditingController());
-    _focusNodes      = List.generate(4, (_) => FocusNode());
+    _codeControllers = List.generate(6, (_) => TextEditingController());
+    _focusNodes      = List.generate(6, (_) => FocusNode());
   }
 
   @override
@@ -37,7 +39,20 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
   }
 
   void _onCodeChanged(String value, int index) {
-    if (value.length == 1 && index < 3) {
+    // If user pasted a full code into one field, distribute it
+    if (value.length > 1) {
+      final chars = value.split('');
+      for (var i = 0; i < chars.length; i++) {
+        final pos = index + i;
+        if (pos >= _codeControllers.length) break;
+        _codeControllers[pos].text = chars[i];
+      }
+      final next = math.min(_codeControllers.length - 1, index + value.length - 1);
+      _focusNodes[next].requestFocus();
+      return;
+    }
+
+    if (value.length == 1 && index < _focusNodes.length - 1) {
       _focusNodes[index + 1].requestFocus();
     } else if (value.isEmpty && index > 0) {
       _focusNodes[index - 1].requestFocus();
@@ -48,9 +63,9 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
 
   Future<void> _handleVerifyCode() async {
     final code = _getCode();
-    if (code.length != 4) {
+    if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter all 4 digits')),
+        const SnackBar(content: Text('Please enter all 6 digits')),
       );
       return;
     }
@@ -152,11 +167,14 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
     final email   = ref.watch(otpEmailProvider);
     final phone   = ref.watch(otpPhoneProvider);
 
+    // Responsive sizing for code input fields
+    final screenWidth = MediaQuery.of(context).size.width;
+    final fieldWidth = math.min(70.0, (screenWidth - 48 - 60) / 6);
+    const fieldHeight = 70.0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
-      body: SizedBox(
-        width: 375,
-        height: 812,
+      body: SizedBox.expand(
         child: Container(
           color: const Color(0xFFFAFAFA),
           margin: const EdgeInsets.only(top: 50, left: 24.0, right: 24.0),
@@ -178,8 +196,8 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
               // ── Show where code was sent ───────────
               Text(
                 otpType == 'email'
-                    ? 'Enter the 4-digit code sent to $email'
-                    : 'Enter the 4-digit code sent to $phone',
+                    ? 'Enter the 6-digit code sent to $email'
+                    : 'Enter the 6-digit code sent to $phone',
                 textAlign: TextAlign.left,
                 style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
@@ -187,53 +205,59 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
               const SizedBox(height: 48),
 
               // ── Code Input Fields ──────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(
-                  4,
-                  (index) => SizedBox(
-                    width: 60,
-                    height: 70,
-                    child: TextField(
-                      controller: _codeControllers[index],
-                      focusNode:  _focusNodes[index],
-                      onChanged:  (value) => _onCodeChanged(value, index),
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      maxLength: 1,
-                      decoration: InputDecoration(
-                        counterText: '',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFF2F2F2),
-                            width: 1.5,
+              Center(
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: List.generate(6, (index) {
+                    return SizedBox(
+                      width: math.max(40.0, fieldWidth),
+                      height: fieldHeight,
+                      child: TextField(
+                        controller: _codeControllers[index],
+                        focusNode: _focusNodes[index],
+                        onChanged: (value) => _onCodeChanged(value, index),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        textAlign: TextAlign.center,
+                        textAlignVertical: TextAlignVertical.center,
+                        maxLength: 1,
+                        autofocus: index == 0,
+                        decoration: InputDecoration(
+                          counterText: '',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFF2F2F2),
+                              width: 1.5,
+                            ),
                           ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFF2F2F2),
-                            width: 1.5,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFF2F2F2),
+                              width: 1.5,
+                            ),
                           ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.primaryMid,
-                            width: 2.0,
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: AppColors.primaryMid,
+                              width: 2.0,
+                            ),
                           ),
+                          filled: true,
+                          fillColor: const Color(0xFFF2F2F2),
                         ),
-                        filled: true,
-                        fillColor: const Color(0xFFF2F2F2),
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
                       ),
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
+                    );
+                  }),
                 ),
               ),
 

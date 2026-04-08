@@ -1,5 +1,5 @@
-import 'dart:convert';
 import 'dart:io';
+import 'dart:convert' as convert;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:ne3ma/features/donations/providers/donation_provider.dart';
 import 'package:ne3ma/core/services/image_upload_service.dart';
+import 'package:ne3ma/core/constants/app_colors.dart';
 
 // ─── Colour tokens (match the design) ─────────────────────────────────────────
 const _kGreen      = Color(0xFF6B8E4E);
@@ -25,7 +26,7 @@ const _categories = [
 ];
 
 // ─── Pickup types that map to the backend enum ────────────────────────────────
-const _pickupTypes = ['DELIVERY', 'PICKUP', 'BOTH'];
+const _pickupTypes = ['DELIVERY', 'PICKUP',];
 
 class AddPostScreen extends ConsumerStatefulWidget {
   const AddPostScreen({super.key});
@@ -37,7 +38,9 @@ class AddPostScreen extends ConsumerStatefulWidget {
 class _AddPostScreenState extends ConsumerState<AddPostScreen> {
   // ── Local UI state ───────────────────────────────────────────────────────────
   XFile?    _imageFile;          // raw picked file
-  String?   _imageBase64;        // base64 string sent to backend
+  String?   _imageBase64;        // compressed image as base64
+  bool      _isUploadingImage = false;
+  bool      _checklistConfirmed = true;
   String?   _category;
   String    _pickupType = _pickupTypes[1]; // default: PICKUP
   DateTime? _expiryDate;
@@ -91,15 +94,35 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
     final file   = await picker.pickImage(source: source, imageQuality: 80);
     if (file == null) return;
 
-    // Compress the image before converting to base64
-    final compressedFile = await ImageUploadService.compressImage(File(file.path));
-    final bytes  = await compressedFile.readAsBytes();
-    final base64 = base64Encode(bytes);
-
     setState(() {
-      _imageFile   = file;
-      _imageBase64 = base64;
+      _imageFile = file;
+      _isUploadingImage = true;
     });
+
+    try {
+      // Compress image and convert to base64
+      final compressedFile = await ImageUploadService.compressImage(File(file.path));
+      final bytes = await compressedFile.readAsBytes();
+      final base64String = convert.base64Encode(bytes);
+      
+      setState(() {
+        _imageBase64 = base64String;
+        _isUploadingImage = false;
+      });
+      debugPrint('✅ AddDonation: Image compressed - ${bytes.length} bytes');
+    } catch (e) {
+      debugPrint('❌ AddDonation: Image compression failed - $e');
+      setState(() => _isUploadingImage = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Image compression failed: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   void _showImageSourceSheet() {
@@ -145,11 +168,22 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
     if (_category == null)                  return 'Please select a category.';
     if (_quantityCtrl.text.trim().isEmpty)  return 'Please enter a quantity.';
     if (_expiryDate == null)                return 'Please pick an expiry date.';
+    if (!_checklistConfirmed)               return 'Please confirm the checklist.';
     return null;
   }
 
   // ── Publish ──────────────────────────────────────────────────────────────────
   Future<void> _publish() async {
+    if (_isUploadingImage) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please wait for image to finish uploading...'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final error = _validateForm();
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -161,35 +195,57 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
     // ISO-8601 string required by the backend
     final expiresAt = _expiryDate!.toIso8601String();
 
-    await ref.read(donationsProvider.notifier).createDonation(
-      title:       _nameCtrl.text.trim(),
-      category:    _category!,
-      pickupType:  _pickupType,
-      quantity:    _quantityCtrl.text.trim(),
-      expiresAt:   expiresAt,
-      description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-      imageBase64: _imageBase64,
+    // Show loading indicator while creating donation
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Creating donation...'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 30), // Auto-hide after 30s if success
+      ),
     );
 
-    // Read the state AFTER the action completes
-    final state = ref.read(donationsProvider);
+    // Wait for the donation to be created
+    final success = await ref.read(donationsProvider.notifier).createDonation(
+      title:              _nameCtrl.text.trim(),
+      category:           _category!,
+      pickupType:         _pickupType,
+      quantity:           _quantityCtrl.text.trim(),
+      expiresAt:          expiresAt,
+      description:        _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+      imageBase64:        _imageBase64,
+      checklistConfirmed: _checklistConfirmed,
+    );
+
     if (!mounted) return;
 
-    if (state.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:         Text(state.error!),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } else {
+    // Clear the loading snackbar
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    // Show result based on success
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:         Text('Donation published! 🎉'),
+          content:         Text('✅ Donation published successfully! 🎉'),
           backgroundColor: _kGreen,
+          behavior:        SnackBarBehavior.floating,
+          duration:        Duration(seconds: 3),
         ),
       );
-      Navigator.maybePop(context);
+      // Close the screen after success
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) Navigator.maybePop(context);
+      });
+    } else {
+      // Read error from state
+      final state = ref.read(donationsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:         Text('❌ Error: ${state.error ?? "Failed to create donation"}'),
+          backgroundColor: Colors.redAccent,
+          behavior:        SnackBarBehavior.floating,
+          duration:        const Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -232,7 +288,7 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
                     imageFile: _imageFile,
                     onTap:     _showImageSourceSheet,
                     onRemove:  () => setState(() {
-                      _imageFile   = null;
+                      _imageFile = null;
                       _imageBase64 = null;
                     }),
                   ),
@@ -316,6 +372,60 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
 
                   // 7. Map visualization ──────────────────────────────────────
                   const _MapVisualizationCard(),
+                  const SizedBox(height: 24),
+
+                  // 8. Checklist confirmation ─────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _kGreenLight,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _kGreen, width: 1),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Donation Checklist',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: _kTextDark,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          '✓ Food is in good condition\n✓ Expiry date is correct\n✓ Properly packaged\n✓ Ready for pickup/delivery',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _kTextGrey,
+                            height: 1.6,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _checklistConfirmed,
+                              onChanged: (v) => setState(() => _checklistConfirmed = v ?? false),
+                              activeColor: _kGreen,
+                              checkColor: Colors.white,
+                            ),
+                            const Expanded(
+                              child: Text(
+                                'I confirm all checklist items are met',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _kTextDark,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

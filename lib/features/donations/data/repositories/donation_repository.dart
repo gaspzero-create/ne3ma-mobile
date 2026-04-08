@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 import '../../../../core/network/graphql_client.dart';
 import '../graphql/donation_queries.dart';
@@ -10,7 +12,7 @@ class DonationRepository {
   Future<List<DonationModel>> getNearbyDonations({
     required double lat,
     required double lng,
-    double radiusKm = 5.0,
+    double radiusKm = 1000.00,
     String? category,
     String? pickupType,
     bool? urgentOnly,
@@ -28,8 +30,8 @@ class DonationRepository {
     final data = await GraphQLClient.query(
       document: DonationQueries.nearbyDonations,
       variables: {
-        'lat':      fixedLat,
-        'lng':      fixedLng,
+        'lat':      lat,
+        'lng':      lng,
         'radiusKm': radiusKm,
         if (filters.isNotEmpty) 'filters': filters,
       },
@@ -111,7 +113,7 @@ class DonationRepository {
         },
       },
     );
-
+    
     debugPrint('✅ DonationRepo: Donation created!');
     return DonationModel.fromMap(data['createDonation']);
   }

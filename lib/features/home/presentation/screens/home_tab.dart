@@ -59,6 +59,21 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
+      
+      if (permission == LocationPermission.deniedForever) {
+        debugPrint('❌ HomeTab: Location permission denied forever');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location permission is required. Please enable it in settings.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        });
+        return; // Don't fall back, let user decide to enable location
+      }
+      
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.medium,
       );
@@ -66,10 +81,24 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         _lat = position.latitude;
         _lng = position.longitude;
       });
+      debugPrint('📍 HomeTab: User location - lat=$_lat, lng=$_lng');
       _fetchDonations(lat: position.latitude, lng: position.longitude);
     } catch (e) {
       debugPrint('❌ HomeTab: Location error - $e');
-      _fetchDonations(lat: 36.8976, lng: 7.7459); // Skikda default
+      // Don't fetch with fallback - wait for user to enable location
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Unable to get your location. Tap to retry.'),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _initLocation,
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      });
     }
   }
 
@@ -177,6 +206,33 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         icon: Icons.notifications_outlined,
                         onTap: () {},
                         hasBadge: true,
+                      ),
+                      const SizedBox(width: 8),
+                      // ── Profile Avatar ────────────────────────────────────
+                      GestureDetector(
+                        onTap: () => context.go('/profile'),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.surfaceVariant,
+                            border: Border.all(
+                              color: AppColors.border,
+                              width: 2,
+                            ),
+                          ),
+                          child: ClipOval(
+                            child: (profile?.avatarUrl != null &&
+                                    (profile?.avatarUrl ?? '').isNotEmpty)
+                                ? Image.network(
+                                    profile!.avatarUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _buildProfilePlaceholder(),
+                                  )
+                                : _buildProfilePlaceholder(),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -720,6 +776,15 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     } catch (_) {
       return 'Expire soon';
     }
+  }
+
+  Widget _buildProfilePlaceholder() {
+    return Center(
+      child: Text(
+        '👤',
+        style: const TextStyle(fontSize: 20),
+      ),
+    );
   }
 }
 
