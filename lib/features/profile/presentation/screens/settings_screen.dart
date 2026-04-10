@@ -7,14 +7,13 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../auth/providers/auth_provider.dart';
 
-
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileState = ref.watch(profileProvider);
-    final profile      = profileState.profile;
+    final profile = profileState.profile;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -53,7 +52,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   // ── Body ───────────────────────────────────────
-  Widget _buildBody(BuildContext context, WidgetRef ref, ProfileModel? profile) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    ProfileModel? profile,
+  ) {
     return ListView(
       padding: EdgeInsets.only(
         left: AppSizes.screenPadding,
@@ -62,7 +65,6 @@ class SettingsScreen extends ConsumerWidget {
         bottom: AppSizes.xl + 80, // Extra padding for bottom nav bar
       ),
       children: [
-
         // ── Profile Header ───────────────────────
         _buildProfileHeader(profile),
         const SizedBox(height: AppSizes.xl),
@@ -139,7 +141,10 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Log out',
               labelColor: AppColors.error,
               iconColor: AppColors.error,
-              onTap: () => _showLogoutDialog(context, ref),
+              onTap: () async {
+                await ref.read(authProvider.notifier).logout();
+                if (context.mounted) context.go('/login');
+              },
               showDivider: false,
             ),
           ],
@@ -163,9 +168,7 @@ class SettingsScreen extends ConsumerWidget {
             color: AppColors.surfaceVariant,
             border: Border.all(color: AppColors.border, width: 1.5),
           ),
-          child: ClipOval(
-            child: _buildAvatarImage(profile?.avatarUrl),
-          ),
+          child: ClipOval(child: _buildAvatarImage(profile?.avatarUrl)),
         ),
         const SizedBox(width: AppSizes.md),
 
@@ -231,54 +234,6 @@ class SettingsScreen extends ConsumerWidget {
       color: AppColors.textHint,
     );
   }
-
-  // ── Logout Dialog ──────────────────────────────
-  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        ),
-        title: const Text(
-          'Log out',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        content: const Text(
-          'Are you sure you want to log out?',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              debugPrint('📤 Settings: Logging out...');
-              await ref.read(authProvider.notifier).logout();
-              debugPrint('✅ Settings: Logged out');
-              if (context.mounted) context.go('/login');
-            },
-            child: const Text(
-              'Log out',
-              style: TextStyle(
-                color: AppColors.error,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ── Section Label ──────────────────────────────────────
@@ -327,12 +282,12 @@ class _SettingsItem extends StatelessWidget {
     this.showDivider = true,
   });
 
-  final IconData    icon;
-  final String      label;
+  final IconData icon;
+  final String label;
   final VoidCallback onTap;
-  final Color?      labelColor;
-  final Color?      iconColor;
-  final bool        showDivider;
+  final Color? labelColor;
+  final Color? iconColor;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
@@ -348,11 +303,7 @@ class _SettingsItem extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  size: 22,
-                  color: iconColor ?? AppColors.textPrimary,
-                ),
+                Icon(icon, size: 22, color: iconColor ?? AppColors.textPrimary),
                 const SizedBox(width: AppSizes.md),
                 Expanded(
                   child: Text(
@@ -378,10 +329,7 @@ class _SettingsItem extends StatelessWidget {
             padding: const EdgeInsets.only(
               left: AppSizes.md + 22 + AppSizes.md,
             ),
-            child: Divider(
-              height: 1,
-              color: AppColors.border.withOpacity(0.6),
-            ),
+            child: Divider(height: 1, color: AppColors.border.withOpacity(0.6)),
           ),
       ],
     );

@@ -233,9 +233,6 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
         expiresAt:          expiresAt,
         description:        description,
         imageBase64:        imageBase64,
-        lat:                lat,
-        lng:                lng,
-        meetingZone:        meetingZone,
         checklistConfirmed: checklistConfirmed,
       );
       debugPrint('✅ DonationsProvider: Created - ${donation.id}');

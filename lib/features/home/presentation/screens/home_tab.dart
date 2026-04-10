@@ -178,6 +178,33 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         onTap: () {},
                         hasBadge: true,
                       ),
+                      const SizedBox(width: 8),
+                      // ── Profile Avatar ────────────────────────────────────
+                      GestureDetector(
+                        onTap: () => context.go('/profile'),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.surfaceVariant,
+                            border: Border.all(
+                              color: AppColors.border,
+                              width: 2,
+                            ),
+                          ),
+                          child: ClipOval(
+                            child: (profile?.avatarUrl != null &&
+                                    (profile?.avatarUrl ?? '').isNotEmpty)
+                                ? Image.network(
+                                    profile!.avatarUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _buildProfilePlaceholder(),
+                                  )
+                                : _buildProfilePlaceholder(),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -720,6 +747,15 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     } catch (_) {
       return 'Expire soon';
     }
+  }
+
+  Widget _buildProfilePlaceholder() {
+    return Center(
+      child: Text(
+        '👤',
+        style: const TextStyle(fontSize: 20),
+      ),
+    );
   }
 }
 
