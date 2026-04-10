@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ne3ma/features/donations/providers/add_donation_form_provider.dart';
+import 'package:ne3ma/features/donations/providers/donation_provider.dart';
 import 'package:ne3ma/features/profile/data/model/profile_model.dart';
 import 'package:ne3ma/features/profile/provider/profile_provider.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -144,7 +146,13 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () async {
                 final shouldLogout = await _showLogoutConfirmDialog(context);
                 if (shouldLogout && context.mounted) {
+                  ref.read(profileProvider.notifier).clearProfile();
+                  ref.read(donationsProvider.notifier).clearSessionData();
+                  ref.read(addDonationFormProvider.notifier).reset();
                   await ref.read(authProvider.notifier).logout();
+                  ref.invalidate(profileProvider);
+                  ref.invalidate(donationsProvider);
+                  ref.invalidate(addDonationFormProvider);
                   if (context.mounted) {
                     context.go('/login');
                   }

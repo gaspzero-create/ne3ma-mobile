@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart';
+import 'package:ne3ma/features/auth/data/graphql/auth_queries.dart';
+
 import '../../../../core/network/graphql_client.dart';
 import '../graphql/auth_mutations.dart';
 import '../models/user_model.dart';
@@ -116,5 +119,15 @@ Future<AuthPayload> register({
     refreshToken: payload.refreshToken,
   );
   return payload;
+}
+
+// Add this method
+Future<UserModel> getMe() async {
+  debugPrint('📤 AuthRepo: Fetching current user...');
+  final data = await GraphQLClient.query(
+    document: AuthQueries.me,
+  );
+  debugPrint('✅ AuthRepo: Got current user');
+  return UserModel.fromMap(data['me']);
 }
 }

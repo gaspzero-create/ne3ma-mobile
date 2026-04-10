@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'dart:convert' as convert;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:ne3ma/features/donations/providers/add_donation_form_provider.dart';
 import 'package:ne3ma/features/donations/providers/donation_provider.dart';
 import 'package:ne3ma/core/services/image_upload_service.dart';
 import 'package:ne3ma/core/constants/app_colors.dart';
@@ -54,6 +56,43 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
   final _quantityCtrl = TextEditingController();
   final _descCtrl     = TextEditingController();
 
+  Uint8List? get _savedImageBytes {
+    final base64 = _imageBase64;
+    if (base64 == null || base64.isEmpty) return null;
+
+    try {
+      return convert.base64Decode(base64);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Prefill from saved provider state so form survives navigation
+    final saved = ref.read(addDonationFormProvider);
+    _nameCtrl.text = saved.title;
+    _quantityCtrl.text = saved.quantity;
+    _descCtrl.text = saved.description;
+    _category = saved.category.isEmpty ? null : saved.category;
+    _pickupType = saved.pickupType;
+    _expiryDate = saved.expiresAt.isEmpty ? null : DateTime.tryParse(saved.expiresAt);
+    _imageBase64 = saved.imageBase64;
+    _checklistConfirmed = saved.checklistConfirmed;
+
+    // Sync local controllers back to provider on every change
+    _nameCtrl.addListener(() {
+      ref.read(addDonationFormProvider.notifier).setTitle(_nameCtrl.text);
+    });
+    _quantityCtrl.addListener(() {
+      ref.read(addDonationFormProvider.notifier).setQuantity(_quantityCtrl.text);
+    });
+    _descCtrl.addListener(() {
+      ref.read(addDonationFormProvider.notifier).setDescription(_descCtrl.text);
+    });
+  }
+
   @override
   void dispose() {
     _nameFocus.dispose();
@@ -84,7 +123,10 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
         child: child!,
       ),
     );
-    if (picked != null) setState(() => _expiryDate = picked);
+    if (picked != null) {
+      setState(() => _expiryDate = picked);
+      ref.read(addDonationFormProvider.notifier).setExpiresAt(picked.toIso8601String());
+    }
   }
 
   // ── Image picker ─────────────────────────────────────────────────────────────
@@ -109,6 +151,8 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
         _imageBase64 = base64String;
         _isUploadingImage = false;
       });
+      // Persist image to provider so it survives navigation
+      ref.read(addDonationFormProvider.notifier).setImageBase64(base64String);
       debugPrint('✅ AddDonation: Image compressed - ${bytes.length} bytes');
     } catch (e) {
       debugPrint('❌ AddDonation: Image compression failed - $e');
@@ -286,10 +330,14 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
                   // 1. Image picker ───────────────────────────────────────────
                   _ImagePickerCard(
                     imageFile: _imageFile,
-                    onTap:     _showImageSourceSheet,
-                    onRemove:  () => setState(() {
+                    imageBytes: _savedImageBytes,
+                    onTap: _showImageSourceSheet,
+                    onRemove: () => setState(() {
                       _imageFile = null;
                       _imageBase64 = null;
+                      ref.read(addDonationFormProvider.notifier).setImageBase64(
+                        null,
+                      );
                     }),
                   ),
                   const SizedBox(height: 24),
@@ -318,7 +366,12 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
                             const SizedBox(height: 8),
                             _CategoryDropdown(
                               value:     _category,
-                              onChanged: (v) => setState(() => _category = v),
+                              onChanged: (v) {
+                                setState(() => _category = v);
+                                if (v != null) {
+                                  ref.read(addDonationFormProvider.notifier).setCategory(v);
+                                }
+                              },
                             ),
                           ],
                         ),
@@ -366,7 +419,10 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
                   const SizedBox(height: 8),
                   _PickupTypeSelector(
                     value:     _pickupType,
-                    onChanged: (v) => setState(() => _pickupType = v),
+                    onChanged: (v) {
+                      setState(() => _pickupType = v);
+                      ref.read(addDonationFormProvider.notifier).setPickupType(v);
+                    },
                   ),
                   const SizedBox(height: 24),
 
@@ -407,7 +463,13 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
                           children: [
                             Checkbox(
                               value: _checklistConfirmed,
-                              onChanged: (v) => setState(() => _checklistConfirmed = v ?? false),
+                              onChanged: (v) {
+                                final isChecked = v ?? false;
+                                setState(() => _checklistConfirmed = isChecked);
+                                ref
+                                    .read(addDonationFormProvider.notifier)
+                                    .setChecklist(isChecked);
+                              },
                               activeColor: _kGreen,
                               checkColor: Colors.white,
                             ),
@@ -647,11 +709,13 @@ class _DateField extends StatelessWidget {
 // ── Image picker card ──────────────────────────────────────────────────────────
 class _ImagePickerCard extends StatelessWidget {
   final XFile?       imageFile;
+  final Uint8List?   imageBytes;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
   const _ImagePickerCard({
     required this.imageFile,
+    required this.imageBytes,
     required this.onTap,
     required this.onRemove,
   });
@@ -668,16 +732,22 @@ class _ImagePickerCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border:       Border.all(color: _kGreen, width: 1.5),
         ),
-        child: imageFile != null
+        child: imageFile != null || imageBytes != null
             ? Stack(
                 fit: StackFit.expand,
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(15),
-                    child: Image.file(
-                      File(imageFile!.path),
-                      fit: BoxFit.cover,
-                    ),
+                    child: imageFile != null
+                        ? Image.file(
+                            File(imageFile!.path),
+                            fit: BoxFit.cover,
+                          )
+                        : Image.memory(
+                            imageBytes!,
+                            fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                          ),
                   ),
                   Positioned(
                     top: 8, right: 8,

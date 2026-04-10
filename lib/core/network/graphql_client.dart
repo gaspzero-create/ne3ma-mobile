@@ -106,6 +106,9 @@ sendTimeout: const Duration(seconds: 30),
   static Future<String?> getAccessToken() =>
       _storage.read(key: 'access_token');
 
+  static Future<String?> getRefreshToken() =>
+      _storage.read(key: 'refresh_token');
+
   // ── Refresh token ──────────────────────────────────
   static Future<bool> _tryRefreshToken(Dio dioInstance) async {
     try {

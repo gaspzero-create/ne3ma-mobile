@@ -245,6 +245,10 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
       return false;
     }
   }
+
+  void clearSessionData() {
+    state = const DonationsState();
+  }
 }
 
 // ── Provider ───────────────────────────────────────────

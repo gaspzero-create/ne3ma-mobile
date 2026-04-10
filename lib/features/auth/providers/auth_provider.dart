@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ne3ma/core/network/graphql_client.dart';
 import '../data/models/user_model.dart';
 import '../data/repositories/auth_repository.dart';
 
@@ -40,14 +42,40 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
 
-  AuthNotifier(this._repository) : super(const AuthState()) {
+  AuthNotifier(this._repository) : super(const AuthState(isLoading: true)) {
     _checkAuth();
   }
 
-  // ── Check existing token on app start ───────────
+  // ── Check existing session on app start ─────────
   Future<void> _checkAuth() async {
-    final isAuth = await _repository.isAuthenticated();
-    state = state.copyWith(isAuthenticated: isAuth);
+    debugPrint('🔄 AuthProvider: Checking saved session...');
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final accessToken = await GraphQLClient.getAccessToken();
+      final refreshToken = await GraphQLClient.getRefreshToken();
+
+      if (accessToken == null && refreshToken == null) {
+        debugPrint('❌ AuthProvider: No saved session found');
+        state = const AuthState();
+        return;
+      }
+
+      debugPrint('✅ AuthProvider: Saved session found, restoring user...');
+      final user = await _repository.getMe();
+      debugPrint('✅ AuthProvider: Welcome back ${user.fullName}');
+
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: true,
+        user: user,
+        error: null,
+      );
+    } catch (e) {
+      debugPrint('❌ AuthProvider: Session restore failed - $e');
+      await _repository.logout();
+      state = const AuthState();
+    }
   }
 
   // ── Register ─────────────────────────────────────
@@ -67,6 +95,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading:       false,
         user:            payload.user,
         isAuthenticated: true,
+        error: null,
       );
       return true;
     } catch (e) {
@@ -90,6 +119,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading:       false,
         user:            payload.user,
         isAuthenticated: true,
+        error: null,
       );
       return true;
     } catch (e) {
@@ -132,6 +162,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading:       false,
         user:            payload.user,
         isAuthenticated: true,
+        error: null,
       );
       return true;
     } catch (e) {
@@ -167,6 +198,7 @@ Future<bool> verifyPhoneOtp({
       isLoading:       false,
       user:            payload.user,
       isAuthenticated: true,
+      error: null,
     );
     return true;
   } catch (e) {

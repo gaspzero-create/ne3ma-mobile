@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ne3ma/features/auth/presentation/screens/forgot_password.dart';
 import 'package:ne3ma/features/auth/presentation/screens/verify_code_screen.dart';
@@ -7,6 +8,7 @@ import 'package:ne3ma/features/auth/presentation/screens/lastIntro.dart';
 import 'package:ne3ma/features/auth/presentation/screens/login.dart';
 import 'package:ne3ma/features/auth/presentation/screens/singup.dart';
 import 'package:ne3ma/features/auth/presentation/screens/splash_screen.dart';
+import 'package:ne3ma/features/auth/providers/auth_provider.dart';
 import 'package:ne3ma/features/chat/presentation/screens/messages_tab.dart';
 import 'package:ne3ma/features/donations/presentation/screens/add_donation_screen.dart';
 import 'package:ne3ma/features/donations/presentation/screens/donation_detail_screen.dart';
@@ -309,5 +311,45 @@ class AppRouter {
       },
     );
   }
+  
+
+static GoRouter routerWithRef(WidgetRef ref) => GoRouter(
+  initialLocation: splash,
+  // ── Auth redirect ──────────────────────────
+  redirect: (context, state) {
+    final authState = ref.read(authProvider);
+    final isAuth    = authState.isAuthenticated;
+    final isLoading = authState.isLoading;
+
+    // Still checking auth → stay on splash
+    if (isLoading) return splash;
+
+    final protectedRoutes = [
+      '/home',
+      '/messages',
+      '/add',
+      '/settings',
+      '/profile',
+      '/profile-tab',
+      '/special',
+    ];
+    final isGoingToProtected = protectedRoutes.any(
+      (r) => state.matchedLocation.startsWith(r),
+    );
+
+    // Not auth + going to protected → go to login
+    if (!isAuth && isGoingToProtected) return login;
+
+    // Auth + going to auth screens → go to home
+    final authRoutes = ['/login', '/signup', '/intro'];
+    final isGoingToAuth = authRoutes.any(
+      (r) => state.matchedLocation.startsWith(r),
+    );
+    if (isAuth && isGoingToAuth) return home;
+
+    return null; // no redirect
+  },
+  routes: router.configuration.routes,
+);
 
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:ne3ma/core/network/graphql_client.dart';
 import 'package:ne3ma/core/router/app_router.dart';
+import 'package:ne3ma/core/theme/app_theme.dart';
+import 'package:ne3ma/features/auth/providers/auth_provider.dart';
 
 void main() {
     WidgetsFlutterBinding.ensureInitialized();
@@ -21,22 +23,19 @@ Future<void> _wakeUpServer() async {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
+   @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(authProvider);
+
     return MaterialApp.router(
-      title: 'Ne3ma',
+      title: "NEJMA",
       debugShowCheckedModeBanner: false,
-      routerConfig: AppRouter.router,
-      theme: ThemeData(
-        
-    
-      ),
-        
+      theme: AppTheme.lightTheme,
+      routerConfig: AppRouter.routerWithRef(ref), // ← pass ref
     );
   }
 }
-

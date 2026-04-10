@@ -81,6 +81,10 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       return false;
     }
   }
+
+  void clearProfile() {
+    state = const ProfileState();
+  }
 }
 
 // ── Provider ──────────────────────────────────────────

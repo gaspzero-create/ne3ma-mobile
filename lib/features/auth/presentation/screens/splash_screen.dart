@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ne3ma/core/constants/app_colors.dart';
+import 'package:ne3ma/features/auth/providers/auth_provider.dart';
 
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -21,9 +22,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   void _navigateAfterDelay() {
     Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        context.go('/intro'); // Navigate to intro screen after 5 seconds
+      if (!mounted) return;
+
+      final authState = ref.read(authProvider);
+      if (authState.isLoading) {
+        _navigateAfterDelay();
+        return;
       }
+
+      context.go(authState.isAuthenticated ? '/home' : '/login');
     });
   }
 
