@@ -1,15 +1,17 @@
-import 'dart:io';
 import 'dart:convert' as convert;
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:ne3ma/core/constants/app_colors.dart';
+import 'package:ne3ma/core/providers/location_provider.dart';
+import 'package:ne3ma/core/services/image_upload_service.dart';
+import 'package:ne3ma/features/donations/presentation/widgets/location_picker_widget.dart';
 import 'package:ne3ma/features/donations/providers/add_donation_form_provider.dart';
 import 'package:ne3ma/features/donations/providers/donation_provider.dart';
-import 'package:ne3ma/core/services/image_upload_service.dart';
-import 'package:ne3ma/core/constants/app_colors.dart';
 
 // ─── Colour tokens (match the design) ─────────────────────────────────────────
 const _kGreen      = Color(0xFF6B8E4E);
@@ -22,39 +24,39 @@ const _kMapBg      = Color(0xFFDFDFD8);
 
 // Only use valid backend enum values for category
 const _categories = [
-  'DRY',     // Dry goods
-  'FRESH',  // Fresh food
-  'URGENT', // Urgent donations
+  'DRY',
+  'FRESH',
+  'URGENT',
 ];
 
-// ─── Pickup types that map to the backend enum ────────────────────────────────
-const _pickupTypes = ['DELIVERY', 'PICKUP',];
+// Backend enum uses DROP and PICKUP, keep the old UI labels.
+const _pickupTypes = ['DROP', 'PICKUP'];
 
-class AddPostScreen extends ConsumerStatefulWidget {
-  const AddPostScreen({super.key});
+class AddDonationScreen extends ConsumerStatefulWidget {
+  const AddDonationScreen({super.key});
 
   @override
-  ConsumerState<AddPostScreen> createState() => _AddPostScreenState();
+  ConsumerState<AddDonationScreen> createState() => _AddDonationScreenState();
 }
 
-class _AddPostScreenState extends ConsumerState<AddPostScreen> {
-  // ── Local UI state ───────────────────────────────────────────────────────────
-  XFile?    _imageFile;          // raw picked file
-  String?   _imageBase64;        // compressed image as base64
-  bool      _isUploadingImage = false;
-  bool      _checklistConfirmed = true;
-  String?   _category;
-  String    _pickupType = _pickupTypes[1]; // default: PICKUP
+class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
+  XFile? _imageFile;
+  String? _imageBase64;
+  bool _isUploadingImage = false;
+  bool _checklistConfirmed = true;
+  String? _category;
+  String _pickupType = _pickupTypes[1];
   DateTime? _expiryDate;
+  double? _selectedLat;
+  double? _selectedLng;
 
-  // ── Form controllers & focus nodes ──────────────────────────────────────────
-  final _formKey      = GlobalKey<FormState>();
-  final _nameFocus    = FocusNode();
+  final _formKey = GlobalKey<FormState>();
+  final _nameFocus = FocusNode();
   final _quantityFocus = FocusNode();
-  final _descFocus    = FocusNode();
-  final _nameCtrl     = TextEditingController();
+  final _descFocus = FocusNode();
+  final _nameCtrl = TextEditingController();
   final _quantityCtrl = TextEditingController();
-  final _descCtrl     = TextEditingController();
+  final _descCtrl = TextEditingController();
 
   Uint8List? get _savedImageBytes {
     final base64 = _imageBase64;
@@ -70,18 +72,22 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
   @override
   void initState() {
     super.initState();
-    // Prefill from saved provider state so form survives navigation
+
     final saved = ref.read(addDonationFormProvider);
+    final location = ref.read(locationProvider);
+
     _nameCtrl.text = saved.title;
     _quantityCtrl.text = saved.quantity;
     _descCtrl.text = saved.description;
     _category = saved.category.isEmpty ? null : saved.category;
     _pickupType = saved.pickupType;
-    _expiryDate = saved.expiresAt.isEmpty ? null : DateTime.tryParse(saved.expiresAt);
+    _expiryDate =
+        saved.expiresAt.isEmpty ? null : DateTime.tryParse(saved.expiresAt);
     _imageBase64 = saved.imageBase64;
     _checklistConfirmed = saved.checklistConfirmed;
+    _selectedLat = location.safeLat;
+    _selectedLng = location.safeLng;
 
-    // Sync local controllers back to provider on every change
     _nameCtrl.addListener(() {
       ref.read(addDonationFormProvider.notifier).setTitle(_nameCtrl.text);
     });
@@ -104,20 +110,19 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
     super.dispose();
   }
 
-  // ── Date picker ──────────────────────────────────────────────────────────────
   Future<void> _pickDate() async {
-    final now    = DateTime.now();
+    final now = DateTime.now();
     final picked = await showDatePicker(
-      context:     context,
+      context: context,
       initialDate: now,
-      firstDate:   now,
-      lastDate:    DateTime(now.year + 5),
+      firstDate: now,
+      lastDate: DateTime(now.year + 5),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(
-            primary:   _kGreen,
+            primary: _kGreen,
             onPrimary: Colors.white,
-            surface:   Colors.white,
+            surface: Colors.white,
           ),
         ),
         child: child!,
@@ -125,15 +130,16 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
     );
     if (picked != null) {
       setState(() => _expiryDate = picked);
-      ref.read(addDonationFormProvider.notifier).setExpiresAt(picked.toIso8601String());
+      ref
+          .read(addDonationFormProvider.notifier)
+          .setExpiresAt(picked.toIso8601String());
     }
   }
 
-  // ── Image picker ─────────────────────────────────────────────────────────────
   Future<void> _pickImage(ImageSource source) async {
     Navigator.pop(context);
     final picker = ImagePicker();
-    final file   = await picker.pickImage(source: source, imageQuality: 80);
+    final file = await picker.pickImage(source: source, imageQuality: 80);
     if (file == null) return;
 
     setState(() {
@@ -142,16 +148,15 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
     });
 
     try {
-      // Compress image and convert to base64
-      final compressedFile = await ImageUploadService.compressImage(File(file.path));
+      final compressedFile =
+          await ImageUploadService.compressImage(File(file.path));
       final bytes = await compressedFile.readAsBytes();
       final base64String = convert.base64Encode(bytes);
-      
+
       setState(() {
         _imageBase64 = base64String;
         _isUploadingImage = false;
       });
-      // Persist image to provider so it survives navigation
       ref.read(addDonationFormProvider.notifier).setImageBase64(base64String);
       debugPrint('✅ AddDonation: Image compressed - ${bytes.length} bytes');
     } catch (e) {
@@ -181,7 +186,8 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
           children: [
             const SizedBox(height: 8),
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(2),
@@ -189,7 +195,8 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: _kGreen),
+              leading:
+                  const Icon(Icons.photo_library_outlined, color: _kGreen),
               title: const Text('Choose from gallery'),
               onTap: () => _pickImage(ImageSource.gallery),
             ),
@@ -205,18 +212,15 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
     );
   }
 
-  // ── Validation ───────────────────────────────────────────────────────────────
   String? _validateForm() {
-    if (_imageBase64 == null)               return 'Please add a picture.';
-    if (_nameCtrl.text.trim().isEmpty)      return 'Please enter a name.';
-    if (_category == null)                  return 'Please select a category.';
-    if (_quantityCtrl.text.trim().isEmpty)  return 'Please enter a quantity.';
-    if (_expiryDate == null)                return 'Please pick an expiry date.';
-    if (!_checklistConfirmed)               return 'Please confirm the checklist.';
+    if (_imageBase64 == null) return 'Please add a picture.';
+    if (_nameCtrl.text.trim().isEmpty) return 'Please enter a name.';
+    if (_category == null) return 'Please select a category.';
+    if (_quantityCtrl.text.trim().isEmpty) return 'Please enter a quantity.';
+    if (_expiryDate == null) return 'Please pick an expiry date.';
     return null;
   }
 
-  // ── Publish ──────────────────────────────────────────────────────────────────
   Future<void> _publish() async {
     if (_isUploadingImage) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -236,64 +240,60 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
       return;
     }
 
-    // ISO-8601 string required by the backend
     final expiresAt = _expiryDate!.toIso8601String();
+    final location = ref.read(locationProvider);
 
-    // Show loading indicator while creating donation
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Creating donation...'),
         behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 30), // Auto-hide after 30s if success
+        duration: Duration(seconds: 30),
       ),
     );
 
-    // Wait for the donation to be created
     final success = await ref.read(donationsProvider.notifier).createDonation(
-      title:              _nameCtrl.text.trim(),
-      category:           _category!,
-      pickupType:         _pickupType,
-      quantity:           _quantityCtrl.text.trim(),
-      expiresAt:          expiresAt,
-      description:        _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-      imageBase64:        _imageBase64,
-      checklistConfirmed: _checklistConfirmed,
-    );
+          title: _nameCtrl.text.trim(),
+          category: _category!,
+          pickupType: _pickupType,
+          quantity: _quantityCtrl.text.trim(),
+          expiresAt: expiresAt,
+          description:
+              _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+          imageBase64: _imageBase64,
+          lat: _selectedLat ?? location.safeLat,
+          lng: _selectedLng ?? location.safeLng,
+          checklistConfirmed: _checklistConfirmed,
+        );
 
     if (!mounted) return;
 
-    // Clear the loading snackbar
     ScaffoldMessenger.of(context).clearSnackBars();
 
-    // Show result based on success
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:         Text('✅ Donation published successfully! 🎉'),
+          content: Text('✅ Donation published successfully! 🎉'),
           backgroundColor: _kGreen,
-          behavior:        SnackBarBehavior.floating,
-          duration:        Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
         ),
       );
-      // Close the screen after success
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) Navigator.maybePop(context);
       });
     } else {
-      // Read error from state
       final state = ref.read(donationsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:         Text('❌ Error: ${state.error ?? "Failed to create donation"}'),
+          content: Text('❌ Error: ${state.error ?? "Failed to create donation"}'),
           backgroundColor: Colors.redAccent,
-          behavior:        SnackBarBehavior.floating,
-          duration:        const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
         ),
       );
     }
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(donationsProvider);
@@ -304,16 +304,19 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
         backgroundColor: _kBg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: _kTextDark, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: _kTextDark,
+            size: 20,
+          ),
           onPressed: () => Navigator.maybePop(context),
         ),
         title: const Text(
           'Add a post',
           style: TextStyle(
-            color:      _kTextDark,
+            color: _kTextDark,
             fontWeight: FontWeight.w700,
-            fontSize:   20,
+            fontSize: 20,
           ),
         ),
       ),
@@ -321,13 +324,11 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
         key: _formKey,
         child: Stack(
           children: [
-            // ── Scrollable form ──────────────────────────────────────────────
             SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Image picker ───────────────────────────────────────────
                   _ImagePickerCard(
                     imageFile: _imageFile,
                     imageBytes: _savedImageBytes,
@@ -336,24 +337,20 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
                       _imageFile = null;
                       _imageBase64 = null;
                       ref.read(addDonationFormProvider.notifier).setImageBase64(
-                        null,
-                      );
+                            null,
+                          );
                     }),
                   ),
                   const SizedBox(height: 24),
-
-                  // 2. Name ───────────────────────────────────────────────────
                   const _FieldLabel('Name'),
                   const SizedBox(height: 8),
                   _AppTextField(
-                    controller:  _nameCtrl,
-                    focusNode:   _nameFocus,
-                    hint:        'Homemade cupcakes',
-                    nextFocus:   _quantityFocus,
+                    controller: _nameCtrl,
+                    focusNode: _nameFocus,
+                    hint: 'Homemade cupcakes',
+                    nextFocus: _quantityFocus,
                   ),
                   const SizedBox(height: 20),
-
-                  // 3. Category + Quantity ────────────────────────────────────
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -365,11 +362,13 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
                             const _FieldLabel('Category'),
                             const SizedBox(height: 8),
                             _CategoryDropdown(
-                              value:     _category,
+                              value: _category,
                               onChanged: (v) {
                                 setState(() => _category = v);
                                 if (v != null) {
-                                  ref.read(addDonationFormProvider.notifier).setCategory(v);
+                                  ref
+                                      .read(addDonationFormProvider.notifier)
+                                      .setCategory(v);
                                 }
                               },
                             ),
@@ -386,9 +385,9 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
                             const SizedBox(height: 8),
                             _AppTextField(
                               controller: _quantityCtrl,
-                              focusNode:  _quantityFocus,
-                              hint:       '2.5 kg ...',
-                              nextFocus:  _descFocus,
+                              focusNode: _quantityFocus,
+                              hint: '2.5 kg ...',
+                              nextFocus: _descFocus,
                             ),
                           ],
                         ),
@@ -396,105 +395,50 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-
-                  // 4. Expiry Date ────────────────────────────────────────────
                   const _FieldLabel('Expiry Date'),
                   const SizedBox(height: 8),
                   _DateField(date: _expiryDate, onTap: _pickDate),
                   const SizedBox(height: 20),
-
-                  // 5. Description ────────────────────────────────────────────
                   const _FieldLabel('Description'),
                   const SizedBox(height: 8),
                   _AppTextField(
                     controller: _descCtrl,
-                    focusNode:  _descFocus,
-                    hint:       'Optional details about the donation…',
-                    maxLines:   3,
+                    focusNode: _descFocus,
+                    hint: 'Optional details about the donation…',
+                    maxLines: 3,
                   ),
                   const SizedBox(height: 20),
-
-                  // 6. Pickup type ────────────────────────────────────────────
                   const _FieldLabel('Pickup type'),
                   const SizedBox(height: 8),
                   _PickupTypeSelector(
-                    value:     _pickupType,
+                    value: _pickupType,
                     onChanged: (v) {
                       setState(() => _pickupType = v);
                       ref.read(addDonationFormProvider.notifier).setPickupType(v);
                     },
                   ),
                   const SizedBox(height: 24),
-
-                  // 7. Map visualization ──────────────────────────────────────
-                  const _MapVisualizationCard(),
-                  const SizedBox(height: 24),
-
-                  // 8. Checklist confirmation ─────────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: _kGreenLight,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _kGreen, width: 1),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Donation Checklist',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: _kTextDark,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          '✓ Food is in good condition\n✓ Expiry date is correct\n✓ Properly packaged\n✓ Ready for pickup/delivery',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: _kTextGrey,
-                            height: 1.6,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: _checklistConfirmed,
-                              onChanged: (v) {
-                                final isChecked = v ?? false;
-                                setState(() => _checklistConfirmed = isChecked);
-                                ref
-                                    .read(addDonationFormProvider.notifier)
-                                    .setChecklist(isChecked);
-                              },
-                              activeColor: _kGreen,
-                              checkColor: Colors.white,
-                            ),
-                            const Expanded(
-                              child: Text(
-                                'I confirm all checklist items are met',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: _kTextDark,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                  _MapVisualizationCard(
+                    initialLat: _selectedLat,
+                    initialLng: _selectedLng,
+                    onLocationSelected: (lat, lng) {
+                      debugPrint(
+                        '📍 AddDonation: Location selected = $lat, $lng',
+                      );
+                      setState(() {
+                        _selectedLat = lat;
+                        _selectedLng = lng;
+                      });
+                    },
                   ),
+                
                 ],
               ),
             ),
-
-            // ── Publish button (pinned at bottom) ────────────────────────────
             Positioned(
-              left: 0, right: 0, bottom: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               child: _PublishBar(
                 isLoading: state.isLoading,
                 onPublish: _publish,
@@ -507,8 +451,6 @@ class _AddPostScreenState extends ConsumerState<AddPostScreen> {
   }
 }
 
-// ─── Sub-widgets ───────────────────────────────────────────────────────────────
-
 class _FieldLabel extends StatelessWidget {
   final String text;
   const _FieldLabel(this.text);
@@ -517,21 +459,20 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) => Text(
         text,
         style: const TextStyle(
-          color:      _kTextDark,
+          color: _kTextDark,
           fontWeight: FontWeight.w600,
-          fontSize:   15,
+          fontSize: 15,
         ),
       );
 }
 
-// ── Generic text field ─────────────────────────────────────────────────────────
 class _AppTextField extends StatelessWidget {
   final TextEditingController controller;
-  final FocusNode             focusNode;
-  final String                hint;
-  final FocusNode?            nextFocus;
-  final TextInputType         keyboardType;
-  final int                   maxLines;
+  final FocusNode focusNode;
+  final String hint;
+  final FocusNode? nextFocus;
+  final TextInputType keyboardType;
+  final int maxLines;
 
   const _AppTextField({
     required this.controller,
@@ -539,19 +480,18 @@ class _AppTextField extends StatelessWidget {
     required this.hint,
     this.nextFocus,
     this.keyboardType = TextInputType.text,
-    this.maxLines     = 1,
+    this.maxLines = 1,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
-      controller:      controller,
-      focusNode:       focusNode,
-      keyboardType:    keyboardType,
-      maxLines:        maxLines,
-      textInputAction: nextFocus != null
-          ? TextInputAction.next
-          : TextInputAction.done,
+      controller: controller,
+      focusNode: focusNode,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      textInputAction:
+          nextFocus != null ? TextInputAction.next : TextInputAction.done,
       onFieldSubmitted: (_) {
         if (nextFocus != null) {
           FocusScope.of(context).requestFocus(nextFocus);
@@ -561,31 +501,31 @@ class _AppTextField extends StatelessWidget {
       },
       style: const TextStyle(color: _kTextDark, fontSize: 15),
       decoration: InputDecoration(
-        hintText:       hint,
-        hintStyle:      const TextStyle(color: _kTextGrey, fontSize: 15),
-        filled:         true,
-        fillColor:      _kFieldBg,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        hintText: hint,
+        hintStyle: const TextStyle(color: _kTextGrey, fontSize: 15),
+        filled: true,
+        fillColor: _kFieldBg,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
-          borderSide:   const BorderSide(color: _kGreen, width: 1.2),
+          borderSide: const BorderSide(color: _kGreen, width: 1.2),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
-          borderSide:   const BorderSide(color: _kGreen, width: 1.2),
+          borderSide: const BorderSide(color: _kGreen, width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
-          borderSide:   const BorderSide(color: _kGreen, width: 2),
+          borderSide: const BorderSide(color: _kGreen, width: 2),
         ),
       ),
     );
   }
 }
 
-// ── Category dropdown ──────────────────────────────────────────────────────────
 class _CategoryDropdown extends StatelessWidget {
-  final String?             value;
+  final String? value;
   final ValueChanged<String?> onChanged;
 
   const _CategoryDropdown({required this.value, required this.onChanged});
@@ -595,41 +535,43 @@ class _CategoryDropdown extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color:        _kFieldBg,
+        color: _kFieldBg,
         borderRadius: BorderRadius.circular(30),
-        border:       Border.all(color: _kGreen, width: 1.2),
+        border: Border.all(color: _kGreen, width: 1.2),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value:         value,
-          hint:          const Text('Select',
-              style: TextStyle(color: _kTextGrey, fontSize: 15)),
-          icon:          const Icon(Icons.keyboard_arrow_down_rounded,
-              color: _kGreen),
-          isExpanded:    true,
+          value: value,
+          hint: const Text(
+            'Select',
+            style: TextStyle(color: _kTextGrey, fontSize: 15),
+          ),
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: _kGreen,
+          ),
+          isExpanded: true,
           dropdownColor: Colors.white,
-          style:         const TextStyle(color: _kTextDark, fontSize: 15),
-          items:         _categories
+          style: const TextStyle(color: _kTextDark, fontSize: 15),
+          items: _categories
               .map((c) => DropdownMenuItem(value: c, child: Text(c)))
               .toList(),
-          onChanged:     onChanged,
+          onChanged: onChanged,
         ),
       ),
     );
   }
 }
 
-// ── Pickup type selector ───────────────────────────────────────────────────────
 class _PickupTypeSelector extends StatelessWidget {
-  final String                value;
-  final ValueChanged<String>  onChanged;
+  final String value;
+  final ValueChanged<String> onChanged;
 
   const _PickupTypeSelector({required this.value, required this.onChanged});
 
   static const _labels = {
-    'DELIVERY': 'Delivery',
-    'PICKUP':   'Pickup',
-    'BOTH':     'Both',
+    'DROP': 'Delivery',
+    'PICKUP': 'Pickup',
   };
 
   @override
@@ -643,17 +585,18 @@ class _PickupTypeSelector extends StatelessWidget {
             onTap: () => onChanged(type),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               decoration: BoxDecoration(
-                color:        selected ? _kGreen : _kFieldBg,
+                color: selected ? _kGreen : _kFieldBg,
                 borderRadius: BorderRadius.circular(30),
-                border:       Border.all(color: _kGreen, width: 1.2),
+                border: Border.all(color: _kGreen, width: 1.2),
               ),
               child: Text(
                 _labels[type]!,
                 style: TextStyle(
-                  color:      selected ? Colors.white : _kTextDark,
-                  fontSize:   14,
+                  color: selected ? Colors.white : _kTextDark,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -665,26 +608,23 @@ class _PickupTypeSelector extends StatelessWidget {
   }
 }
 
-// ── Date field ─────────────────────────────────────────────────────────────────
 class _DateField extends StatelessWidget {
-  final DateTime?   date;
+  final DateTime? date;
   final VoidCallback onTap;
 
   const _DateField({required this.date, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final label = date != null
-        ? DateFormat('dd/MM/yy').format(date!)
-        : 'dd/mm/yy';
+    final label = date != null ? DateFormat('dd/MM/yy').format(date!) : 'dd/mm/yy';
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color:        _kFieldBg,
+          color: _kFieldBg,
           borderRadius: BorderRadius.circular(30),
-          border:       Border.all(color: _kGreen, width: 1.2),
+          border: Border.all(color: _kGreen, width: 1.2),
         ),
         child: Row(
           children: [
@@ -692,13 +632,16 @@ class _DateField extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyle(
-                  color:    date != null ? _kTextDark : _kTextGrey,
+                  color: date != null ? _kTextDark : _kTextGrey,
                   fontSize: 15,
                 ),
               ),
             ),
-            const Icon(Icons.calendar_today_outlined,
-                size: 20, color: _kTextGrey),
+            const Icon(
+              Icons.calendar_today_outlined,
+              size: 20,
+              color: _kTextGrey,
+            ),
           ],
         ),
       ),
@@ -706,10 +649,9 @@ class _DateField extends StatelessWidget {
   }
 }
 
-// ── Image picker card ──────────────────────────────────────────────────────────
 class _ImagePickerCard extends StatelessWidget {
-  final XFile?       imageFile;
-  final Uint8List?   imageBytes;
+  final XFile? imageFile;
+  final Uint8List? imageBytes;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
@@ -728,9 +670,9 @@ class _ImagePickerCard extends StatelessWidget {
         width: double.infinity,
         height: 160,
         decoration: BoxDecoration(
-          color:        _kGreenLight,
+          color: _kGreenLight,
           borderRadius: BorderRadius.circular(16),
-          border:       Border.all(color: _kGreen, width: 1.5),
+          border: Border.all(color: _kGreen, width: 1.5),
         ),
         child: imageFile != null || imageBytes != null
             ? Stack(
@@ -750,7 +692,8 @@ class _ImagePickerCard extends StatelessWidget {
                           ),
                   ),
                   Positioned(
-                    top: 8, right: 8,
+                    top: 8,
+                    right: 8,
                     child: GestureDetector(
                       onTap: onRemove,
                       child: Container(
@@ -759,8 +702,11 @@ class _ImagePickerCard extends StatelessWidget {
                           color: Colors.white,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.close,
-                            size: 18, color: Colors.redAccent),
+                        child: const Icon(
+                          Icons.close,
+                          size: 18,
+                          color: Colors.redAccent,
+                        ),
                       ),
                     ),
                   ),
@@ -776,58 +722,68 @@ class _ImagePickerCard extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          width: 60, height: 60,
+          width: 60,
+          height: 60,
           decoration: const BoxDecoration(
-              color: _kGreen, shape: BoxShape.circle),
-          child: const Icon(Icons.camera_alt_outlined,
-              color: Colors.white, size: 28),
+            color: _kGreen,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.camera_alt_outlined,
+            color: Colors.white,
+            size: 28,
+          ),
         ),
         const SizedBox(height: 12),
-        const Text('Add a picture',
-            style: TextStyle(
-                color: _kTextDark, fontWeight: FontWeight.w600, fontSize: 15)),
+        const Text(
+          'Add a picture',
+          style: TextStyle(
+            color: _kTextDark,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
         const SizedBox(height: 4),
-        const Text('Required',
-            style: TextStyle(color: _kTextGrey, fontSize: 13)),
+        const Text(
+          'Required',
+          style: TextStyle(color: _kTextGrey, fontSize: 13),
+        ),
       ],
     );
   }
 }
 
-// ── Map visualization card ─────────────────────────────────────────────────────
 class _MapVisualizationCard extends StatelessWidget {
-  const _MapVisualizationCard();
+  final double? initialLat;
+  final double? initialLng;
+  final void Function(double lat, double lng) onLocationSelected;
+
+  const _MapVisualizationCard({
+    required this.initialLat,
+    required this.initialLng,
+    required this.onLocationSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
-        color:        _kMapBg,
+        color: _kMapBg,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         children: [
-          Container(
-            width: 64, height: 64,
-            decoration: BoxDecoration(
-              color:        Colors.white.withOpacity(0.6),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Center(
-              child: Text('🗺️', style: TextStyle(fontSize: 36)),
-            ),
-          ),
+    
+        
+      
           const SizedBox(height: 16),
-          const Text('Map visualization',
-              style: TextStyle(
-                  color: _kTextDark, fontWeight: FontWeight.w700, fontSize: 16)),
-          const SizedBox(height: 6),
-          const Text(
-            'Showing donation hotspots\nby wilaya',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: _kTextGrey, fontSize: 13, height: 1.5),
+          LocationPickerWidget(
+            initialLat: initialLat,
+            initialLng: initialLng,
+            onLocationSelected: onLocationSelected,
+            showHint: false,
           ),
         ],
       ),
@@ -835,9 +791,8 @@ class _MapVisualizationCard extends StatelessWidget {
   }
 }
 
-// ── Publish bar ────────────────────────────────────────────────────────────────
 class _PublishBar extends StatelessWidget {
-  final bool         isLoading;
+  final bool isLoading;
   final VoidCallback onPublish;
 
   const _PublishBar({required this.isLoading, required this.onPublish});
@@ -846,14 +801,18 @@ class _PublishBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          20, 12, 20, 12 + MediaQuery.of(context).padding.bottom),
+        20,
+        12,
+        20,
+        12 + MediaQuery.of(context).padding.bottom,
+      ),
       decoration: BoxDecoration(
         color: _kBg,
         boxShadow: [
           BoxShadow(
-            color:      Colors.black.withOpacity(0.06),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 10,
-            offset:     const Offset(0, -4),
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -863,24 +822,28 @@ class _PublishBar extends StatelessWidget {
         child: ElevatedButton(
           onPressed: isLoading ? null : onPublish,
           style: ElevatedButton.styleFrom(
-            backgroundColor:         _kGreen,
+            backgroundColor: _kGreen,
             disabledBackgroundColor: _kGreen.withOpacity(0.6),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30)),
+              borderRadius: BorderRadius.circular(30),
+            ),
             elevation: 0,
           ),
           child: isLoading
               ? const SizedBox(
-                  width: 22, height: 22,
+                  width: 22,
+                  height: 22,
                   child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2.5),
+                    color: Colors.white,
+                    strokeWidth: 2.5,
+                  ),
                 )
               : const Text(
                   'Publish',
                   style: TextStyle(
-                    color:      Colors.white,
+                    color: Colors.white,
                     fontWeight: FontWeight.w600,
-                    fontSize:   16,
+                    fontSize: 16,
                     letterSpacing: 0.3,
                   ),
                 ),

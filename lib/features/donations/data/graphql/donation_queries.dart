@@ -87,4 +87,17 @@ class DonationQueries {
     }
   }
 ''';
+// ── Reservations on MY donations (donor view) ──
+static const String myDonationReservations = '''
+  query MyDonationReservations {
+    myDonationReservations {
+      id
+      status
+      reservedAt
+      confirmedAt
+      createdAt
+      updatedAt
+    }
+  }
+''';
 }

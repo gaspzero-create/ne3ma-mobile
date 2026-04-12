@@ -35,8 +35,10 @@ class DonationsState {
   final List<DonationModel>    donations;
   final List<DonationModel>    myDonations;
   final List<ReservationModel> myReservations;
+  final List<ReservationModel> myDonationReservations;
   final bool                   isLoading;
   final bool                   isReservationsLoading;
+  final bool                   isDonationReservationsLoading;
   final String?                error;
   final DonationFilter         filter;
 
@@ -44,8 +46,10 @@ class DonationsState {
     this.donations             = const [],
     this.myDonations           = const [],
     this.myReservations        = const [],
+    this.myDonationReservations = const [],
     this.isLoading             = false,
     this.isReservationsLoading = false,
+    this.isDonationReservationsLoading = false,
     this.error,
     this.filter                = const DonationFilter(),
   });
@@ -54,8 +58,10 @@ class DonationsState {
     List<DonationModel>?    donations,
     List<DonationModel>?    myDonations,
     List<ReservationModel>? myReservations,
+    List<ReservationModel>? myDonationReservations,
     bool?                   isLoading,
     bool?                   isReservationsLoading,
+    bool?                   isDonationReservationsLoading,
     String?                 error,
     DonationFilter?         filter,
   }) {
@@ -63,8 +69,12 @@ class DonationsState {
       donations:             donations             ?? this.donations,
       myDonations:           myDonations           ?? this.myDonations,
       myReservations:        myReservations        ?? this.myReservations,
+      myDonationReservations:
+          myDonationReservations ?? this.myDonationReservations,
       isLoading:             isLoading             ?? this.isLoading,
       isReservationsLoading: isReservationsLoading ?? this.isReservationsLoading,
+      isDonationReservationsLoading:
+          isDonationReservationsLoading ?? this.isDonationReservationsLoading,
       error:                 error,
       filter:                filter                ?? this.filter,
     );
@@ -142,6 +152,31 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
     }
   }
 
+  // ── Fetch reservations on my donations ────────
+  Future<void> fetchMyDonationReservations() async {
+    debugPrint('📤 DonationsProvider: Fetching my donation reservations...');
+    state = state.copyWith(
+      isDonationReservationsLoading: true,
+      error: null,
+    );
+    try {
+      final reservations = await _repository.getMyDonationReservations();
+      debugPrint(
+        '✅ DonationsProvider: ${reservations.length} donation reservations',
+      );
+      state = state.copyWith(
+        isDonationReservationsLoading: false,
+        myDonationReservations: reservations,
+      );
+    } catch (e) {
+      debugPrint('❌ DonationsProvider: Donation reservations error - $e');
+      state = state.copyWith(
+        isDonationReservationsLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
   // ── Set filter ─────────────────────────────────
   void setFilter(String? category) {
     debugPrint('🔍 DonationsProvider: Filter = $category');
@@ -200,6 +235,9 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
         myReservations: state.myReservations
             .where((r) => r.id != reservationId)
             .toList(),
+        myDonationReservations: state.myDonationReservations
+            .where((r) => r.id != reservationId)
+            .toList(),
       );
       return true;
     } catch (e) {
@@ -233,6 +271,9 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
         expiresAt:          expiresAt,
         description:        description,
         imageBase64:        imageBase64,
+        lat:                lat,
+        lng:                lng,
+        meetingZone:        meetingZone,
         checklistConfirmed: checklistConfirmed,
       );
       debugPrint('✅ DonationsProvider: Created - ${donation.id}');
@@ -242,6 +283,50 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
       return true;
     } catch (e) {
       debugPrint('❌ DonationsProvider: Create error - $e');
+      return false;
+    }
+  }
+
+  Future<bool> confirmReservation(String reservationId) async {
+    debugPrint('📤 DonationsProvider: Confirming $reservationId...');
+    try {
+      await _repository.confirmReservation(reservationId);
+      debugPrint('✅ DonationsProvider: Confirmed!');
+      state = state.copyWith(
+        myDonationReservations: state.myDonationReservations.map((r) {
+          if (r.id == reservationId) {
+            return ReservationModel.fromMap({
+              'id': r.id,
+              'status': 'CONFIRMED',
+              'createdAt': r.createdAt,
+              'reservedAt': r.reservedAt,
+              'confirmedAt': DateTime.now().toIso8601String(),
+              'beneficiary': {
+                'id': r.beneficiaryId,
+                'fullName': r.beneficiaryName,
+                'phoneNumber': r.beneficiaryPhoneNumber,
+                'email': r.beneficiaryEmail,
+                'wilaya': r.beneficiaryWilaya,
+                'baladiya': r.beneficiaryBaladiya,
+              },
+              'donation': {
+                'id': r.donationId,
+                'title': r.donationTitle,
+                'category': r.donationCategory,
+                'imageUrl': r.donationImageUrl,
+                'meetingZone': r.donationMeetingZone,
+                'pickupType': r.donationPickupType,
+                'quantity': r.donationQuantity,
+              },
+            });
+          }
+          return r;
+        }).toList(),
+      );
+      return true;
+    } catch (e) {
+      debugPrint('❌ DonationsProvider: Confirm error - $e');
+      state = state.copyWith(error: e.toString());
       return false;
     }
   }

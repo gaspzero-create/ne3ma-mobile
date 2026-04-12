@@ -135,9 +135,9 @@ class AppRouter {
           ),
           GoRoute(
             path: '/add',
-            pageBuilder: (context, state) => _fadePage(
+            pageBuilder: (context, state) => _slideRightPage(
               state: state,
-              child: const AddPostScreen(),
+              child: const AddDonationScreen(),
             ),
           ),
           GoRoute(

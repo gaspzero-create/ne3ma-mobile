@@ -1,5 +1,7 @@
 class ChatMessageModel {
   final String id;
+  final String? roomId;
+  final String? senderId;
   final String content;
   final bool   isModerated;
   final String sentAt;
@@ -9,6 +11,8 @@ class ChatMessageModel {
 
   const ChatMessageModel({
     required this.id,
+    this.roomId,
+    this.senderId,
     required this.content,
     required this.isModerated,
     required this.sentAt,
@@ -19,26 +23,32 @@ class ChatMessageModel {
     Map<String, dynamic> map, {
     String? currentUserId,
   }) {
+    final senderId = map['senderId']?.toString();
     return ChatMessageModel(
       id:          map['id']          ?? '',
+      roomId:      map['roomId']?.toString(),
+      senderId:    senderId,
       content:     map['content']     ?? '',
       isModerated: map['isModerated'] ?? false,
       sentAt:      map['sentAt']      ?? '',
-      isMine:      false, // history messages — we don't know sender from schema yet
+      isMine:      currentUserId != null && senderId == currentUserId,
     );
   }
 
   // ── For socket newMessage ──────────────────────
   factory ChatMessageModel.fromSocket(
     Map<String, dynamic> map, {
-    bool isMine = false,
+    String? currentUserId,
   }) {
+    final senderId = map['senderId']?.toString();
     return ChatMessageModel(
       id:          map['id']          ?? DateTime.now().toString(),
+      roomId:      map['roomId']?.toString(),
+      senderId:    senderId,
       content:     map['content']     ?? '',
       isModerated: map['isModerated'] ?? false,
       sentAt:      map['sentAt']      ?? DateTime.now().toIso8601String(),
-      isMine:      isMine,
+      isMine:      currentUserId != null && senderId == currentUserId,
     );
   }
 
@@ -48,6 +58,8 @@ class ChatMessageModel {
   }) {
     return ChatMessageModel(
       id:          'optimistic_${DateTime.now().millisecondsSinceEpoch}',
+      roomId:      null,
+      senderId:    null,
       content:     content,
       isModerated: false,
       sentAt:      DateTime.now().toIso8601String(),

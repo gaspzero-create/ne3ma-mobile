@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 import '../../../../core/network/graphql_client.dart';
 import '../graphql/donation_queries.dart';
@@ -92,9 +90,6 @@ class DonationRepository {
     debugPrint('📤 DonationRepo: Creating donation...');
     debugPrint('📝 DonationRepo: title=$title, category=$category');
 
-    const double fixedLat = 36.8796;
-    const double fixedLng = 6.9063;
-
     final data = await GraphQLClient.query(
       document: DonationMutations.createDonation,
       variables: {
@@ -106,8 +101,8 @@ class DonationRepository {
           'expiresAt':          expiresAt,
           if (description != null) 'description': description,
           if (imageBase64 != null) 'imageBase64': imageBase64,
-          'lat':                fixedLat,
-          'lng':                fixedLng,
+          if (lat != null) 'lat': lat,
+          if (lng != null) 'lng': lng,
           if (meetingZone != null) 'meetingZone': meetingZone,
           'checklistConfirmed': checklistConfirmed,
         },
@@ -149,5 +144,25 @@ class DonationRepository {
     );
     debugPrint('✅ DonationRepo: Donation deleted!');
     return data['deleteDonation'] as bool;
+  }
+
+  Future<List<ReservationModel>> getMyDonationReservations() async {
+    debugPrint('📤 DonationRepo: Fetching my donation reservations...');
+    final data = await GraphQLClient.query(
+      document: DonationQueries.myDonationReservations,
+    );
+    final list = data['myDonationReservations'] as List;
+    debugPrint('✅ DonationRepo: Got ${list.length} donation reservations');
+    return list.map((e) => ReservationModel.fromMap(e)).toList();
+  }
+
+  Future<ReservationModel> confirmReservation(String reservationId) async {
+    debugPrint('📤 DonationRepo: Confirming reservation $reservationId...');
+    final data = await GraphQLClient.query(
+      document: DonationMutations.confirmReservation,
+      variables: {'reservationId': reservationId},
+    );
+    debugPrint('✅ DonationRepo: Reservation confirmed!');
+    return ReservationModel.fromMap(data['confirmReservation']);
   }
 }

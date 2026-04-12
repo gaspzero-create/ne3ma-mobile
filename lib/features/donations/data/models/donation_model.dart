@@ -67,24 +67,72 @@ class DonationModel {
 }
 
 class ReservationModel {
-  final String id;
-  final String status;
-  final String createdAt;
+  final String  id;
+  final String  status;
+  final String  createdAt;
+  final String  reservedAt;
   final String? confirmedAt;
+
+  // ── Beneficiary info (from myDonationReservations) ─
+  final String? beneficiaryId;
+  final String? beneficiaryName;
+  final String? beneficiaryPhoneNumber;
+  final String? beneficiaryEmail;
+  final String? beneficiaryWilaya;
+  final String? beneficiaryBaladiya;
+
+  // ── Donation info (from myDonationReservations) ─
+  final String? donationId;
+  final String? donationTitle;
+  final String? donationCategory;
+  final String? donationImageUrl;
+  final String? donationMeetingZone;
+  final String? donationPickupType;
+  final String? donationQuantity;
 
   const ReservationModel({
     required this.id,
     required this.status,
     required this.createdAt,
+    required this.reservedAt,
     this.confirmedAt,
+    this.beneficiaryId,
+    this.beneficiaryName,
+    this.beneficiaryPhoneNumber,
+    this.beneficiaryEmail,
+    this.beneficiaryWilaya,
+    this.beneficiaryBaladiya,
+    this.donationId,
+    this.donationTitle,
+    this.donationCategory,
+    this.donationImageUrl,
+    this.donationMeetingZone,
+    this.donationPickupType,
+    this.donationQuantity,
   });
 
   factory ReservationModel.fromMap(Map<String, dynamic> map) {
+    final beneficiary = map['beneficiary'] as Map<String, dynamic>?;
+    final donation = map['donation'] as Map<String, dynamic>?;
     return ReservationModel(
-      id:          map['id']          ?? '',
-      status:      map['status']      ?? 'PENDING',
-      createdAt:   map['createdAt']   ?? '',
-      confirmedAt: map['confirmedAt'],
+      id:                  map['id']          ?? '',
+      status:              map['status']       ?? 'PENDING',
+      createdAt:           map['createdAt']    ?? '',
+      reservedAt:          map['reservedAt']   ?? map['createdAt'] ?? '',
+      confirmedAt:         map['confirmedAt'],
+      beneficiaryId:       beneficiary?['id'],
+      beneficiaryName:     beneficiary?['fullName'],
+      beneficiaryPhoneNumber: beneficiary?['phoneNumber'],
+      beneficiaryEmail:    beneficiary?['email'],
+      beneficiaryWilaya:   beneficiary?['wilaya'],
+      beneficiaryBaladiya: beneficiary?['baladiya'],
+      donationId:          donation?['id'],
+      donationTitle:       donation?['title'],
+      donationCategory:    donation?['category'],
+      donationImageUrl:    donation?['imageUrl'],
+      donationMeetingZone: donation?['meetingZone'],
+      donationPickupType:  donation?['pickupType'],
+      donationQuantity:    donation?['quantity'],
     );
   }
 }

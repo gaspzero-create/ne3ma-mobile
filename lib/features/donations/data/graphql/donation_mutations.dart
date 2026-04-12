@@ -57,4 +57,14 @@ class DonationMutations {
       deleteDonation(id: \$id)
     }
   ''';
+
+  static const String confirmReservation = '''
+  mutation ConfirmReservation(\$reservationId: ID!) {
+    confirmReservation(reservationId: \$reservationId) {
+      id
+      status
+      confirmedAt
+    }
+  }
+''';
 }

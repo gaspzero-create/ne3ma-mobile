@@ -21,7 +21,7 @@ class AddDonationFormState {
     this.meetingZone       = '',
     this.expiresAt         = '',
     this.imageBase64,
-    this.checklistConfirmed = false,
+    this.checklistConfirmed = true,
   });
 
   bool get isValid =>

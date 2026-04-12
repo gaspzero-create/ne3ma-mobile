@@ -1,78 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ne3ma/core/constants/app_colors.dart';
-import 'chat_screen.dart';
+import 'package:ne3ma/features/chat/presentation/screens/chat_screen.dart';
+import 'package:ne3ma/features/donations/providers/donation_provider.dart';
 
-// ── Fake data model (replace with real provider later) ────────────────────────
 class _ConversationItem {
   final String id;
   final String name;
-  final String avatarUrl;
   final String lastMessage;
   final String time;
-  final int unreadCount;
+  final String donationTitle;
+  final String donationStatus;
+  final DateTime sortDate;
 
   const _ConversationItem({
     required this.id,
     required this.name,
-    required this.avatarUrl,
     required this.lastMessage,
     required this.time,
-    this.unreadCount = 0,
+    required this.donationTitle,
+    required this.donationStatus,
+    required this.sortDate,
   });
 }
 
-final _fakeConversations = [
-  _ConversationItem(
-    id: '1',
-    name: 'Darlene Steward',
-    avatarUrl: '',
-    lastMessage: 'Pls take a look at the images.',
-    time: '18:31',
-    unreadCount: 5,
-  ),
-  _ConversationItem(
-    id: '2',
-    name: 'Fullsnack Associate',
-    avatarUrl: '',
-    lastMessage: 'Hello, we have discussed about ...',
-    time: '16:04',
-  ),
-  _ConversationItem(
-    id: '3',
-    name: 'Lee Williamson',
-    avatarUrl: '',
-    lastMessage: 'Yes, that\'s gonna work.',
-    time: '06:12',
-  ),
-  _ConversationItem(
-    id: '4',
-    name: 'Ronald Mccoy',
-    avatarUrl: '',
-    lastMessage: 'Thanks dude 😊',
-    time: 'Yesterday',
-  ),
-  _ConversationItem(
-    id: '5',
-    name: 'Albert Bell',
-    avatarUrl: '',
-    lastMessage: 'I\'m happy this meal has such grea...',
-    time: 'Yesterday',
-  ),
-];
-
-// ── Messages Tab ──────────────────────────────────────────────────────────────
-class MessagesTab extends StatelessWidget {
+class MessagesTab extends ConsumerStatefulWidget {
   const MessagesTab({super.key});
 
   @override
+  ConsumerState<MessagesTab> createState() => _MessagesTabState();
+}
+
+class _MessagesTabState extends ConsumerState<MessagesTab> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(donationsProvider.notifier).fetchMyReservations();
+      ref.read(donationsProvider.notifier).fetchMyDonationReservations();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = ref.watch(donationsProvider);
+    final conversations = _buildConversations(state);
+    final isLoading = (state.isReservationsLoading ||
+            state.isDonationReservationsLoading) &&
+        conversations.isEmpty;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── App Bar ──────────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -98,43 +80,133 @@ class MessagesTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-
-            // ── Conversation List ─────────────────────────────────────────────
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: _fakeConversations.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 4),
-                itemBuilder: (context, index) {
-                  final conv = _fakeConversations[index];
-                  return _ConversationTile(
-                    conversation: conv,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                            conversationId: conv.id,
-                            otherUserName: conv.name,
-                            // TODO: pass donationTitle from real data
-                            donationTitle: 'Homemade Cake',
-                            donationStatus: 'Available',
+              child: isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryMid,
+                      ),
+                    )
+                  : conversations.isEmpty
+                      ? const _EmptyMessagesState()
+                      : RefreshIndicator(
+                          onRefresh: () async {
+                            await ref
+                                .read(donationsProvider.notifier)
+                                .fetchMyReservations();
+                            await ref
+                                .read(donationsProvider.notifier)
+                                .fetchMyDonationReservations();
+                          },
+                          color: AppColors.primaryMid,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: conversations.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 4),
+                            itemBuilder: (context, index) {
+                              final conversation = conversations[index];
+                              return _ConversationTile(
+                                conversation: conversation,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ChatScreen(
+                                        conversationId: conversation.id,
+                                        otherUserName: conversation.name,
+                                        donationTitle:
+                                            conversation.donationTitle,
+                                        donationStatus:
+                                            conversation.donationStatus,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ),
-                      );
-                    },
-                  );
-                },
-              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  List<_ConversationItem> _buildConversations(DonationsState state) {
+    final conversations = <_ConversationItem>[
+      ...state.myReservations
+          .where((reservation) => reservation.status == 'CONFIRMED')
+          .map(
+            (reservation) => _ConversationItem(
+              id: reservation.id,
+              name: 'Donor',
+              lastMessage:
+                  reservation.donationTitle ?? 'Confirmed reservation chat',
+              time: _formatConversationTime(
+                reservation.confirmedAt ?? reservation.reservedAt,
+              ),
+              donationTitle: reservation.donationTitle ?? 'Donation',
+              donationStatus: reservation.status,
+              sortDate: _parseDate(
+                reservation.confirmedAt ?? reservation.reservedAt,
+              ),
+            ),
+          ),
+      ...state.myDonationReservations
+          .where((reservation) => reservation.status == 'CONFIRMED')
+          .map(
+            (reservation) => _ConversationItem(
+              id: reservation.id,
+              name: reservation.beneficiaryName ?? 'Beneficiary',
+              lastMessage:
+                  reservation.donationTitle ?? 'Confirmed donation chat',
+              time: _formatConversationTime(
+                reservation.confirmedAt ?? reservation.reservedAt,
+              ),
+              donationTitle: reservation.donationTitle ?? 'Donation',
+              donationStatus: reservation.status,
+              sortDate: _parseDate(
+                reservation.confirmedAt ?? reservation.reservedAt,
+              ),
+            ),
+          ),
+    ];
+
+    conversations.sort((a, b) => b.sortDate.compareTo(a.sortDate));
+    return conversations;
+  }
+
+  DateTime _parseDate(String value) {
+    try {
+      return DateTime.parse(value).toLocal();
+    } catch (_) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+  }
+
+  String _formatConversationTime(String value) {
+    try {
+      final date = DateTime.parse(value).toLocal();
+      final now = DateTime.now();
+      final sameDay = now.year == date.year &&
+          now.month == date.month &&
+          now.day == date.day;
+
+      if (sameDay) {
+        final hour = date.hour.toString().padLeft(2, '0');
+        final minute = date.minute.toString().padLeft(2, '0');
+        return '$hour:$minute';
+      }
+
+      return '${date.day}/${date.month}';
+    } catch (_) {
+      return '';
+    }
+  }
 }
 
-// ── Conversation Tile ─────────────────────────────────────────────────────────
 class _ConversationTile extends StatelessWidget {
   final _ConversationItem conversation;
   final VoidCallback onTap;
@@ -153,11 +225,8 @@ class _ConversationTile extends StatelessWidget {
         color: Colors.transparent,
         child: Row(
           children: [
-            // ── Avatar ──────────────────────────────────────────────────────
             _Avatar(name: conversation.name),
             const SizedBox(width: 14),
-
-            // ── Name + Last Message ──────────────────────────────────────────
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,8 +253,6 @@ class _ConversationTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-
-            // ── Time + Badge ─────────────────────────────────────────────────
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -197,26 +264,7 @@ class _ConversationTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                if (conversation.unreadCount > 0)
-                  Container(
-                    width: 22,
-                    height: 22,
-                    decoration: const BoxDecoration(
-                      color: AppColors.accent,
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${conversation.unreadCount}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox(height: 22),
+                const SizedBox(height: 22),
               ],
             ),
           ],
@@ -226,25 +274,74 @@ class _ConversationTile extends StatelessWidget {
   }
 }
 
-// ── Avatar ────────────────────────────────────────────────────────────────────
 class _Avatar extends StatelessWidget {
   final String name;
-  final double radius;
 
-  const _Avatar({required this.name, this.radius = 26});
+  const _Avatar({required this.name});
 
   @override
   Widget build(BuildContext context) {
-    final initials = name.trim().split(' ').take(2).map((w) => w[0]).join();
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .toList();
+    final initials = parts.isEmpty
+        ? '?'
+        : parts.map((part) => part[0]).join().toUpperCase();
+
     return CircleAvatar(
-      radius: radius,
+      radius: 26,
       backgroundColor: AppColors.primarySurface,
       child: Text(
-        initials.toUpperCase(),
+        initials,
         style: TextStyle(
-          fontSize: radius * 0.58,
+          fontSize: 26 * 0.58,
           fontWeight: FontWeight.w600,
           color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyMessagesState extends StatelessWidget {
+  const _EmptyMessagesState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 56,
+              color: AppColors.textHint,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'No chats yet',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Chats appear here after a reservation is confirmed.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+          ],
         ),
       ),
     );
