@@ -11,17 +11,15 @@ class DonationRepository {
     required double lat,
     required double lng,
     double radiusKm = 1000.00,
-    String? category,
+    String? categoryId,
     String? pickupType,
     bool? urgentOnly,
   }) async {
     debugPrint('📤 DonationRepo: Fetching nearby donations...');
-    const double fixedLat = 36.8796;
-    const double fixedLng = 6.9063;
-    debugPrint('📍 DonationRepo: lat=$fixedLat, lng=$fixedLng, radius=$radiusKm');
+    debugPrint('📍 DonationRepo: lat=$lat, lng=$lng, radius=$radiusKm');
 
     final filters = <String, dynamic>{};
-    if (category   != null) filters['category']   = category;
+    if (categoryId != null) filters['categoryId'] = categoryId;
     if (pickupType != null) filters['pickupType']  = pickupType;
     if (urgentOnly != null) filters['urgentOnly']  = urgentOnly;
 
@@ -76,7 +74,7 @@ class DonationRepository {
   // ── Create donation ────────────────────────────
   Future<DonationModel> createDonation({
     required String title,
-    required String category,
+    required String categoryId,
     required String pickupType,
     required String quantity,
     required String expiresAt,
@@ -88,14 +86,14 @@ class DonationRepository {
     bool checklistConfirmed = false,
   }) async {
     debugPrint('📤 DonationRepo: Creating donation...');
-    debugPrint('📝 DonationRepo: title=$title, category=$category');
+    debugPrint('📝 DonationRepo: title=$title, categoryId=$categoryId');
 
     final data = await GraphQLClient.query(
       document: DonationMutations.createDonation,
       variables: {
         'input': {
           'title':              title,
-          'category':           category,
+          'categoryId':         categoryId,
           'pickupType':         pickupType,
           'quantity':           quantity,
           'expiresAt':          expiresAt,

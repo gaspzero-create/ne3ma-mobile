@@ -18,7 +18,12 @@ class DonationQueries {
         id
         title
         description
-        category
+        category {
+          id
+          name
+          description
+          isActive
+        }
         status
         pickupType
         quantity
@@ -41,7 +46,12 @@ class DonationQueries {
         id
         title
         description
-        category
+        category {
+          id
+          name
+          description
+          isActive
+        }
         status
         pickupType
         quantity
@@ -60,7 +70,12 @@ class DonationQueries {
         id
         title
         description
-        category
+        category {
+          id
+          name
+          description
+          isActive
+        }
         status
         pickupType
         quantity
@@ -84,6 +99,18 @@ class DonationQueries {
       confirmedAt
       createdAt
       updatedAt
+      donation {
+        id
+        title
+        category {
+          id
+          name
+        }
+        imageUrl
+        meetingZone
+        pickupType
+        quantity
+      }
     }
   }
 ''';
@@ -97,6 +124,26 @@ static const String myDonationReservations = '''
       confirmedAt
       createdAt
       updatedAt
+      beneficiary {
+        id
+        fullName
+        phoneNumber
+        email
+        wilaya
+        baladiya
+      }
+      donation {
+        id
+        title
+        category {
+          id
+          name
+        }
+        imageUrl
+        meetingZone
+        pickupType
+        quantity
+      }
     }
   }
 ''';

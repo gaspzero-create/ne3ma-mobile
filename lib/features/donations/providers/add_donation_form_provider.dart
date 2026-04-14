@@ -14,7 +14,7 @@ class AddDonationFormState {
 
   const AddDonationFormState({
     this.title             = '',
-    this.category          = 'FRESH',
+    this.category          = '',
     this.pickupType        = 'PICKUP',
     this.quantity          = '',
     this.description       = '',

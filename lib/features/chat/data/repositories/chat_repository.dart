@@ -9,6 +9,7 @@ class ChatRepository {
   Future<List<ChatMessageModel>> getChatHistory(
     String roomId, {
     String? currentUserId,
+    Set<String>? knownMineIds,
   }) async {
     debugPrint('📤 ChatRepo: Loading history for room $roomId...');
     try {
@@ -23,6 +24,7 @@ class ChatRepository {
             (e) => ChatMessageModel.fromMap(
               e,
               currentUserId: currentUserId,
+              knownMineIds: knownMineIds,
             ),
           )
           .toList();

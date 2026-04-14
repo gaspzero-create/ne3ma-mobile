@@ -10,21 +10,23 @@ final donationRepositoryProvider = Provider<DonationRepository>((ref) {
 
 // ── Filter State ───────────────────────────────────────
 class DonationFilter {
-  final String? category;
+  static const String myDonationsKey = '__my_donations__';
+
+  final String? categoryId;
   final double radiusKm;
 
   const DonationFilter({
-    this.category,
+    this.categoryId,
     this.radiusKm = 1000.0,
   });
 
   DonationFilter copyWith({
-    String? category,
+    String? categoryId,
     bool clearCategory = false,
     double? radiusKm,
   }) {
     return DonationFilter(
-      category: clearCategory ? null : category ?? this.category,
+      categoryId: clearCategory ? null : categoryId ?? this.categoryId,
       radiusKm: radiusKm ?? this.radiusKm,
     );
   }
@@ -82,8 +84,14 @@ class DonationsState {
 
   // ── Filtered list ──────────────────────────────
   List<DonationModel> get filteredDonations {
-    if (filter.category == null) return donations;
-    return donations.where((d) => d.category == filter.category).toList();
+    if (filter.categoryId == null ||
+        filter.categoryId == DonationFilter.myDonationsKey) {
+      return donations;
+    }
+
+    return donations
+        .where((d) => d.categoryId == filter.categoryId)
+        .toList();
   }
 }
 
@@ -105,7 +113,7 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
         lat:      lat,
         lng:      lng,
         radiusKm: state.filter.radiusKm,
-        category: state.filter.category,
+        categoryId: _categoryIdForQuery,
       );
       final filtered = donations
           .where((d) => !state.myDonations.any((my) => my.id == d.id))
@@ -178,12 +186,12 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
   }
 
   // ── Set filter ─────────────────────────────────
-  void setFilter(String? category) {
-    debugPrint('🔍 DonationsProvider: Filter = $category');
+  void setFilter(String? categoryId) {
+    debugPrint('🔍 DonationsProvider: Filter = $categoryId');
     state = state.copyWith(
       filter: state.filter.copyWith(
-        category:      category,
-        clearCategory: category == null,
+        categoryId:    categoryId,
+        clearCategory: categoryId == null,
       ),
     );
   }
@@ -201,7 +209,10 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
               'id':          d.id,
               'title':       d.title,
               'description': d.description,
-              'category':    d.category,
+              'category': {
+                'id': d.categoryId,
+                'name': d.category,
+              },
               'status':      'RESERVED',
               'pickupType':  d.pickupType,
               'quantity':    d.quantity,
@@ -250,7 +261,7 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
   // ── Create donation ────────────────────────────
   Future<bool> createDonation({
     required String title,
-    required String category,
+    required String categoryId,
     required String pickupType,
     required String quantity,
     required String expiresAt,
@@ -265,7 +276,7 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
     try {
       final donation = await _repository.createDonation(
         title:              title,
-        category:           category,
+        categoryId:         categoryId,
         pickupType:         pickupType,
         quantity:           quantity,
         expiresAt:          expiresAt,
@@ -290,37 +301,12 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
   Future<bool> confirmReservation(String reservationId) async {
     debugPrint('📤 DonationsProvider: Confirming $reservationId...');
     try {
-      await _repository.confirmReservation(reservationId);
+      final updatedReservation =
+          await _repository.confirmReservation(reservationId);
       debugPrint('✅ DonationsProvider: Confirmed!');
       state = state.copyWith(
         myDonationReservations: state.myDonationReservations.map((r) {
-          if (r.id == reservationId) {
-            return ReservationModel.fromMap({
-              'id': r.id,
-              'status': 'CONFIRMED',
-              'createdAt': r.createdAt,
-              'reservedAt': r.reservedAt,
-              'confirmedAt': DateTime.now().toIso8601String(),
-              'beneficiary': {
-                'id': r.beneficiaryId,
-                'fullName': r.beneficiaryName,
-                'phoneNumber': r.beneficiaryPhoneNumber,
-                'email': r.beneficiaryEmail,
-                'wilaya': r.beneficiaryWilaya,
-                'baladiya': r.beneficiaryBaladiya,
-              },
-              'donation': {
-                'id': r.donationId,
-                'title': r.donationTitle,
-                'category': r.donationCategory,
-                'imageUrl': r.donationImageUrl,
-                'meetingZone': r.donationMeetingZone,
-                'pickupType': r.donationPickupType,
-                'quantity': r.donationQuantity,
-              },
-            });
-          }
-          return r;
+          return r.id == reservationId ? updatedReservation : r;
         }).toList(),
       );
       return true;
@@ -333,6 +319,14 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
 
   void clearSessionData() {
     state = const DonationsState();
+  }
+
+  String? get _categoryIdForQuery {
+    final categoryId = state.filter.categoryId;
+    if (categoryId == DonationFilter.myDonationsKey) {
+      return null;
+    }
+    return categoryId;
   }
 }
 

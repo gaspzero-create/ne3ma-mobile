@@ -7,7 +7,12 @@ class DonationMutations {
       createDonation(input: \$input) {
         id
         title
-        category
+        category {
+          id
+          name
+          description
+          isActive
+        }
         status
         pickupType
         quantity
@@ -58,12 +63,35 @@ class DonationMutations {
     }
   ''';
 
-  static const String confirmReservation = '''
+static const String confirmReservation = '''
   mutation ConfirmReservation(\$reservationId: ID!) {
     confirmReservation(reservationId: \$reservationId) {
       id
       status
+      createdAt
+      reservedAt
       confirmedAt
+      updatedAt
+      beneficiary {
+        id
+        fullName
+        phoneNumber
+        email
+        wilaya
+        baladiya
+      }
+      donation {
+        id
+        title
+        category {
+          id
+          name
+        }
+        imageUrl
+        meetingZone
+        pickupType
+        quantity
+      }
     }
   }
 ''';

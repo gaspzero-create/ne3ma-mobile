@@ -9,9 +9,12 @@ import 'package:intl/intl.dart';
 import 'package:ne3ma/core/constants/app_colors.dart';
 import 'package:ne3ma/core/providers/location_provider.dart';
 import 'package:ne3ma/core/services/image_upload_service.dart';
+import 'package:ne3ma/features/donations/data/models/category_model.dart';
 import 'package:ne3ma/features/donations/presentation/widgets/location_picker_widget.dart';
 import 'package:ne3ma/features/donations/providers/add_donation_form_provider.dart';
+import 'package:ne3ma/features/donations/providers/category_provider.dart';
 import 'package:ne3ma/features/donations/providers/donation_provider.dart';
+import 'package:ne3ma/features/donations/utils/category_utils.dart';
 
 // ─── Colour tokens (match the design) ─────────────────────────────────────────
 const _kGreen      = Color(0xFF6B8E4E);
@@ -21,13 +24,6 @@ const _kFieldBg    = Color(0xFFEFEFEA);
 const _kTextDark   = Color(0xFF1C1C1E);
 const _kTextGrey   = Color(0xFF9E9E9E);
 const _kMapBg      = Color(0xFFDFDFD8);
-
-// Only use valid backend enum values for category
-const _categories = [
-  'DRY',
-  'FRESH',
-  'URGENT',
-];
 
 // Backend enum uses DROP and PICKUP, keep the old UI labels.
 const _pickupTypes = ['DROP', 'PICKUP'];
@@ -221,6 +217,38 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
     return null;
   }
 
+  void _restoreSavedCategory(List<CategoryModel> categories) {
+    final selectedCategory = _category;
+    if (selectedCategory == null || selectedCategory.isEmpty) return;
+
+    final alreadyResolved = categories.any((category) {
+      return category.id == selectedCategory;
+    });
+    if (alreadyResolved) return;
+
+    CategoryModel? resolvedCategory;
+    for (final category in categories) {
+      if (matchesStoredCategory(
+        storedValue: selectedCategory,
+        categoryId: category.id,
+        categoryName: category.name,
+      )) {
+        resolvedCategory = category;
+        break;
+      }
+    }
+
+    if (resolvedCategory == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _category == resolvedCategory!.id) return;
+      setState(() => _category = resolvedCategory!.id);
+      ref.read(addDonationFormProvider.notifier).setCategory(
+            resolvedCategory!.id,
+          );
+    });
+  }
+
   Future<void> _publish() async {
     if (_isUploadingImage) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -253,7 +281,7 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
 
     final success = await ref.read(donationsProvider.notifier).createDonation(
           title: _nameCtrl.text.trim(),
-          category: _category!,
+          categoryId: _category!,
           pickupType: _pickupType,
           quantity: _quantityCtrl.text.trim(),
           expiresAt: expiresAt,
@@ -297,6 +325,10 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(donationsProvider);
+    final categoriesAsync = ref.watch(donationCategoriesProvider);
+    final categories = categoriesAsync.value ?? const <CategoryModel>[];
+
+    _restoreSavedCategory(categories);
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -363,6 +395,8 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
                             const SizedBox(height: 8),
                             _CategoryDropdown(
                               value: _category,
+                              categories: categories,
+                              isLoading: categoriesAsync.isLoading,
                               onChanged: (v) {
                                 setState(() => _category = v);
                                 if (v != null) {
@@ -526,12 +560,28 @@ class _AppTextField extends StatelessWidget {
 
 class _CategoryDropdown extends StatelessWidget {
   final String? value;
+  final List<CategoryModel> categories;
+  final bool isLoading;
   final ValueChanged<String?> onChanged;
 
-  const _CategoryDropdown({required this.value, required this.onChanged});
+  const _CategoryDropdown({
+    required this.value,
+    required this.categories,
+    required this.isLoading,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final selectedValue = categories.any((category) => category.id == value)
+        ? value
+        : null;
+    final hint = isLoading
+        ? 'Loading...'
+        : categories.isEmpty
+            ? 'No categories'
+            : 'Select';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
@@ -541,10 +591,10 @@ class _CategoryDropdown extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
-          hint: const Text(
-            'Select',
-            style: TextStyle(color: _kTextGrey, fontSize: 15),
+          value: selectedValue,
+          hint: Text(
+            hint,
+            style: const TextStyle(color: _kTextGrey, fontSize: 15),
           ),
           icon: const Icon(
             Icons.keyboard_arrow_down_rounded,
@@ -553,10 +603,15 @@ class _CategoryDropdown extends StatelessWidget {
           isExpanded: true,
           dropdownColor: Colors.white,
           style: const TextStyle(color: _kTextDark, fontSize: 15),
-          items: _categories
-              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+          items: categories
+              .map(
+                (category) => DropdownMenuItem(
+                  value: category.id,
+                  child: Text(displayCategoryLabel(category.name)),
+                ),
+              )
               .toList(),
-          onChanged: onChanged,
+          onChanged: isLoading || categories.isEmpty ? null : onChanged,
         ),
       ),
     );
@@ -768,6 +823,8 @@ class _MapVisualizationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
+      // Add a little extra bottom margin so the card isn't cut off while scrolling
+      margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
         color: _kMapBg,

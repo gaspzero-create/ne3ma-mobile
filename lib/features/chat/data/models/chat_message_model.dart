@@ -22,16 +22,19 @@ class ChatMessageModel {
   factory ChatMessageModel.fromMap(
     Map<String, dynamic> map, {
     String? currentUserId,
+    Set<String>? knownMineIds,
   }) {
     final senderId = map['senderId']?.toString();
+    final messageId = map['id']?.toString() ?? '';
     return ChatMessageModel(
-      id:          map['id']          ?? '',
+      id:          messageId,
       roomId:      map['roomId']?.toString(),
       senderId:    senderId,
       content:     map['content']     ?? '',
       isModerated: map['isModerated'] ?? false,
       sentAt:      map['sentAt']      ?? '',
-      isMine:      currentUserId != null && senderId == currentUserId,
+      isMine:      (currentUserId != null && senderId == currentUserId) ||
+          (knownMineIds?.contains(messageId) ?? false),
     );
   }
 

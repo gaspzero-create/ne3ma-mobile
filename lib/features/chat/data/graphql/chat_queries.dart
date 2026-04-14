@@ -7,6 +7,7 @@ class ChatQueries {
     query ChatHistory(\$roomId: ID!) {
       chatHistory(roomId: \$roomId) {
         id
+        senderId
         content
         isModerated
         sentAt

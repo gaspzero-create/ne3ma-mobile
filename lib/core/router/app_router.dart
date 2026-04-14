@@ -16,10 +16,9 @@ import 'package:ne3ma/features/donations/data/models/donation_model.dart';
 import 'package:ne3ma/features/donations/presentation/screens/special_tab.dart';
 import 'package:ne3ma/features/home/presentation/screens/home_screen.dart';
 import 'package:ne3ma/features/home/presentation/screens/home_tab.dart';
+import 'package:ne3ma/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/settings_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/profile_screens.dart';
-
-import 'package:ne3ma/features/home/presentation/screens/home_tab.dart';
 
 class AppRouter {
   AppRouter._();
@@ -35,6 +34,7 @@ class AppRouter {
   static const String settings       = '/settings';
   static const String profile        = '/profile';
   static const String home           = '/home';
+  static const String notifications  = '/notifications';
 
   static final router = GoRouter(
     initialLocation: splash,
@@ -67,7 +67,7 @@ class AppRouter {
 
       GoRoute(
         path: login,
-        pageBuilder: (context, state) => _fadeScalePage(
+        pageBuilder: (context, state) => _loginPage(
           state: state,
           child: const LoginScreen(),
         ),
@@ -113,6 +113,14 @@ class AppRouter {
         pageBuilder: (context, state) => _slideRightPage(
           state: state,
           child: const EditProfileScreen(),
+        ),
+      ),
+
+      GoRoute(
+        path: notifications,
+        pageBuilder: (context, state) => _slideRightPage(
+          state: state,
+          child: const NotificationsScreen(),
         ),
       ),
 
@@ -228,26 +236,44 @@ class AppRouter {
     );
   }
 
-  // ── Fade + Scale ────────────────────────────────
-  static CustomTransitionPage _fadeScalePage({
+  // ── Login Transition ───────────────────────────
+  static CustomTransitionPage _loginPage({
     required GoRouterState state,
     required Widget child,
   }) {
     return CustomTransitionPage(
       key: state.pageKey,
       child: child,
-      transitionDuration: const Duration(milliseconds: 400),
-      reverseTransitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: const Duration(milliseconds: 520),
+      reverseTransitionDuration: const Duration(milliseconds: 280),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final curved = CurvedAnimation(
+        final fade = CurvedAnimation(
+          parent: animation,
+          curve: const Interval(0.0, 0.85, curve: Curves.easeOut),
+        );
+        final slide = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,
         );
+        final scale = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutQuart,
+        );
+
         return FadeTransition(
-          opacity: curved,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.95, end: 1.0).animate(curved),
-            child: child,
+          opacity: fade,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.0, 0.06),
+              end: Offset.zero,
+            ).animate(slide),
+            child: ScaleTransition(
+              scale: Tween<double>(
+                begin: 0.985,
+                end: 1.0,
+              ).animate(scale),
+              child: child,
+            ),
           ),
         );
       },

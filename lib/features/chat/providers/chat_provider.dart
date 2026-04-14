@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../services/chat_socket_service.dart';
 
 // ── Backend URL ────────────────────────────────────────
 const String _backendUrl = 'https://ne3ma-prod-service-helo.up.railway.app';
+const String _mineMessageIdsKeyPrefix = 'chat_mine_message_ids';
 
 // ── Repository provider ────────────────────────────────
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
@@ -66,6 +68,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
   Future<void> initChat(String reservationId) async {
     debugPrint('📤 ChatProvider: Initializing chat for room $reservationId');
     final currentUserId = _ref.read(currentUserProvider)?.id;
+    final knownMineIds = currentUserId == null
+        ? <String>{}
+        : await _loadKnownMineMessageIds(currentUserId, reservationId);
 
     // If already in this room → skip
     if (state.currentRoomId == reservationId && state.isConnected) {
@@ -85,6 +90,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       final history = await _repository.getChatHistory(
         reservationId,
         currentUserId: currentUserId,
+        knownMineIds: knownMineIds,
       );
       debugPrint('✅ ChatProvider: Loaded ${history.length} history messages');
       state = state.copyWith(messages: history, isLoading: false);
@@ -150,6 +156,18 @@ class ChatNotifier extends StateNotifier<ChatState> {
         data,
         currentUserId: currentUserId,
       );
+
+      if (newMsg.isMine &&
+          currentUserId != null &&
+          state.currentRoomId != null) {
+        unawaited(
+          _rememberMineMessageId(
+            currentUserId,
+            state.currentRoomId!,
+            newMsg.id,
+          ),
+        );
+      }
 
       final msgs = [...state.messages];
       final existingIdx = msgs.indexWhere((m) => m.id == newMsg.id);
@@ -230,6 +248,54 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   void clearError() {
     state = state.copyWith(error: null);
+  }
+
+  String _mineMessageIdsKey(String userId, String roomId) {
+    return '$_mineMessageIdsKeyPrefix:$userId:$roomId';
+  }
+
+  Future<Set<String>> _loadKnownMineMessageIds(
+    String userId,
+    String roomId,
+  ) async {
+    const storage = FlutterSecureStorage();
+    final raw = await storage.read(key: _mineMessageIdsKey(userId, roomId));
+
+    if (raw == null || raw.isEmpty) {
+      return <String>{};
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.map((item) => item.toString()).toSet();
+      }
+    } catch (e) {
+      debugPrint('❌ ChatProvider: Failed to read mine message cache - $e');
+    }
+
+    return <String>{};
+  }
+
+  Future<void> _rememberMineMessageId(
+    String userId,
+    String roomId,
+    String messageId,
+  ) async {
+    if (messageId.isEmpty || messageId.startsWith('optimistic_')) {
+      return;
+    }
+
+    const storage = FlutterSecureStorage();
+    final ids = await _loadKnownMineMessageIds(userId, roomId);
+    if (!ids.add(messageId)) {
+      return;
+    }
+
+    await storage.write(
+      key: _mineMessageIdsKey(userId, roomId),
+      value: jsonEncode(ids.toList()),
+    );
   }
 
   // ── Dispose chat ────────────────────────────────

@@ -141,7 +141,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     final donationsState = ref.watch(donationsProvider);
     final profile = ref.watch(profileProvider).profile;
 
-    final activeFilter = donationsState.filter.category;
+    final activeFilter = donationsState.filter.categoryId;
     final isMyDonations = activeFilter == 'MY';
     final displayed = isMyDonations
         ? donationsState.myDonations
@@ -219,7 +219,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                       const SizedBox(width: 8),
                       _IconButton(
                         icon: Icons.notifications_outlined,
-                        onTap: () {},
+                        onTap: () => context.push('/notifications'),
                         hasBadge: true,
                       ),
                       const SizedBox(width: 8),
