@@ -114,8 +114,8 @@ class DonationQueries {
     }
   }
 ''';
-// ── Reservations on MY donations (donor view) ──
-static const String myDonationReservations = '''
+  // ── Reservations on MY donations (donor view) ──
+  static const String myDonationReservations = '''
   query MyDonationReservations {
     myDonationReservations {
       id
@@ -131,6 +131,7 @@ static const String myDonationReservations = '''
         email
         wilaya
         baladiya
+        avatarUrl
       }
       donation {
         id

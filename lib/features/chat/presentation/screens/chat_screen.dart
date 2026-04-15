@@ -7,6 +7,7 @@ import 'package:ne3ma/features/chat/providers/chat_provider.dart';
 class ChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
   final String otherUserName;
+  final String? otherUserAvatarUrl;
   final String donationTitle;
   final String donationStatus;
 
@@ -14,6 +15,7 @@ class ChatScreen extends ConsumerStatefulWidget {
     super.key,
     required this.conversationId,
     required this.otherUserName,
+    this.otherUserAvatarUrl,
     required this.donationTitle,
     required this.donationStatus,
   });
@@ -111,6 +113,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               donationTitle: widget.donationTitle,
               donationStatus: widget.donationStatus,
               otherUserName: widget.otherUserName,
+              otherUserAvatarUrl: widget.otherUserAvatarUrl,
               onBack: () => Navigator.maybePop(context),
               onProfileTap: () {},
             ),
@@ -146,9 +149,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       itemCount: chatState.messages.length,
       itemBuilder: (context, index) {
         final message = chatState.messages[index];
-        final previousMessage =
-            index > 0 ? chatState.messages[index - 1] : null;
-        final showTime = previousMessage == null ||
+        final previousMessage = index > 0
+            ? chatState.messages[index - 1]
+            : null;
+        final showTime =
+            previousMessage == null ||
             previousMessage.formattedTime != message.formattedTime;
 
         return Column(
@@ -157,6 +162,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             _MessageBubble(
               message: message,
               otherUserName: widget.otherUserName,
+              otherUserAvatarUrl: widget.otherUserAvatarUrl,
             ),
           ],
         );
@@ -169,6 +175,7 @@ class _ChatAppBar extends StatelessWidget {
   final String donationTitle;
   final String donationStatus;
   final String otherUserName;
+  final String? otherUserAvatarUrl;
   final VoidCallback onBack;
   final VoidCallback onProfileTap;
 
@@ -176,6 +183,7 @@ class _ChatAppBar extends StatelessWidget {
     required this.donationTitle,
     required this.donationStatus,
     required this.otherUserName,
+    this.otherUserAvatarUrl,
     required this.onBack,
     required this.onProfileTap,
   });
@@ -186,9 +194,7 @@ class _ChatAppBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(8, 12, 16, 12),
       decoration: const BoxDecoration(
         color: AppColors.background,
-        border: Border(
-          bottom: BorderSide(color: AppColors.border, width: 0.5),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: Column(
         children: [
@@ -240,7 +246,11 @@ class _ChatAppBar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  _Avatar(name: otherUserName, radius: 20),
+                  _Avatar(
+                    name: otherUserName,
+                    avatarUrl: otherUserAvatarUrl,
+                    radius: 20,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     otherUserName,
@@ -291,10 +301,7 @@ class _TimeStamp extends StatelessWidget {
       child: Center(
         child: Text(
           time.isEmpty ? 'Now' : time,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
       ),
     );
@@ -304,10 +311,12 @@ class _TimeStamp extends StatelessWidget {
 class _MessageBubble extends StatelessWidget {
   final ChatMessageModel message;
   final String otherUserName;
+  final String? otherUserAvatarUrl;
 
   const _MessageBubble({
     required this.message,
     required this.otherUserName,
+    this.otherUserAvatarUrl,
   });
 
   @override
@@ -319,10 +328,7 @@ class _MessageBubble extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            _Bubble(
-              content: message.content,
-              isMe: true,
-            ),
+            _Bubble(content: message.content, isMe: true),
             const SizedBox(width: 8),
             ClipOval(
               child: Container(
@@ -347,7 +353,11 @@ class _MessageBubble extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _Avatar(name: otherUserName, radius: 15),
+          _Avatar(
+            name: otherUserName,
+            avatarUrl: otherUserAvatarUrl,
+            radius: 15,
+          ),
           const SizedBox(width: 8),
           _Bubble(content: message.content, isMe: false),
         ],
@@ -377,9 +387,7 @@ class _Bubble extends StatelessWidget {
           bottomLeft: Radius.circular(isMe ? 18 : 4),
           bottomRight: Radius.circular(isMe ? 4 : 18),
         ),
-        border: isMe
-            ? null
-            : Border.all(color: AppColors.border, width: 0.5),
+        border: isMe ? null : Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Text(
         content,
@@ -456,10 +464,7 @@ class _InputBar extends StatelessWidget {
                 ),
                 decoration: const InputDecoration(
                   hintText: 'Message',
-                  hintStyle: TextStyle(
-                    color: AppColors.textHint,
-                    fontSize: 14,
-                  ),
+                  hintStyle: TextStyle(color: AppColors.textHint, fontSize: 14),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 16,
@@ -495,9 +500,10 @@ class _InputBar extends StatelessWidget {
 
 class _Avatar extends StatelessWidget {
   final String name;
+  final String? avatarUrl;
   final double radius;
 
-  const _Avatar({required this.name, this.radius = 26});
+  const _Avatar({required this.name, this.avatarUrl, this.radius = 26});
 
   @override
   Widget build(BuildContext context) {
@@ -505,14 +511,17 @@ class _Avatar extends StatelessWidget {
     return CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.primarySurface,
-      child: Text(
-        initials,
-        style: TextStyle(
-          fontSize: radius * 0.58,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primary,
-        ),
-      ),
+      backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
+      child: avatarUrl == null
+          ? Text(
+              initials,
+              style: TextStyle(
+                fontSize: radius * 0.58,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            )
+          : null,
     );
   }
 

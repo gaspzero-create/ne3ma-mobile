@@ -4,6 +4,8 @@ import 'package:ne3ma/core/constants/app_colors.dart';
 import 'package:ne3ma/features/chat/presentation/screens/chat_screen.dart';
 import 'package:ne3ma/features/donations/data/models/donation_model.dart';
 import 'package:ne3ma/features/donations/providers/donation_provider.dart';
+import 'package:ne3ma/features/donations/presentation/screens/reservation_confirmed_screen.dart';
+import 'package:ne3ma/features/donations/presentation/screens/reservation_declined_screen.dart';
 
 class SpecialTab extends ConsumerStatefulWidget {
   const SpecialTab({super.key});
@@ -40,7 +42,6 @@ class _SpecialTabState extends ConsumerState<SpecialTab>
       body: SafeArea(
         child: Column(
           children: [
-
             // ── Header ──────────────────────────
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -48,9 +49,9 @@ class _SpecialTabState extends ConsumerState<SpecialTab>
                 child: Text(
                   'Special',
                   style: TextStyle(
-                    fontSize:   18,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color:      AppColors.textPrimary,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -62,33 +63,33 @@ class _SpecialTabState extends ConsumerState<SpecialTab>
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
-                height:      44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color:        AppColors.surfaceVariant,
+                  color: AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: TabBar(
-                  controller:         _tabController,
-                  labelColor:         Colors.white,
+                  controller: _tabController,
+                  labelColor: Colors.white,
                   unselectedLabelColor: AppColors.textSecondary,
                   labelStyle: const TextStyle(
-                    fontSize:   13,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                   unselectedLabelStyle: const TextStyle(
-                    fontSize:   13,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
                   indicator: BoxDecoration(
-                    color:        AppColors.primary,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor:  Colors.transparent,
+                  dividerColor: Colors.transparent,
                   padding: const EdgeInsets.all(4),
                   tabs: const [
-                    Tab(text: 'My Donations'),  // donor view
-                    Tab(text: 'My Reserved'),   // beneficiary view
+                    Tab(text: 'My Reservation'), // beneficiary view
+                    Tab(text: 'Reserved'), // donor view
                   ],
                 ),
               ),
@@ -101,8 +102,8 @@ class _SpecialTabState extends ConsumerState<SpecialTab>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _MyDonationsTab(),  // Tab 0 — people who reserved from me
-                  _MyReservedTab(),   // Tab 1 — I reserved from others
+                  _MyReservedTab(), // Tab 0 — I reserved from others
+                  _MyDonationsTab(), // Tab 1 — people who reserved from me
                 ],
               ),
             ),
@@ -129,8 +130,8 @@ class _MyDonationsTab extends ConsumerWidget {
 
     if (state.myDonationReservations.isEmpty) {
       return _EmptyState(
-        emoji:    '📦',
-        title:    'No reservations yet',
+        emoji: '📦',
+        title: 'No reservations yet',
         subtitle: 'When someone reserves\nyour donation it appears here',
       );
     }
@@ -146,15 +147,17 @@ class _MyDonationsTab extends ConsumerWidget {
           final reservation = state.myDonationReservations[index];
           return _DonorReservationCard(
             reservation: reservation,
-            onConfirm: () => _onConfirm(context, ref, reservation.id),
-            onCancel:  () => _onCancel(context, ref, reservation.id),
-            onChat:    () => Navigator.push(
+            onConfirm: () =>
+                _onConfirm(context, ref, reservation.id, reservation),
+            onCancel: () =>
+                _onCancel(context, ref, reservation.id, reservation),
+            onChat: () => Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => ChatScreen(
                   conversationId: reservation.id,
-                  otherUserName:
-                      reservation.beneficiaryName ?? 'Beneficiary',
+                  otherUserName: reservation.beneficiaryName ?? 'Beneficiary',
+                  otherUserAvatarUrl: reservation.beneficiaryAvatarUrl,
                   donationTitle: reservation.donationTitle ?? 'Donation',
                   donationStatus: reservation.status,
                 ),
@@ -167,14 +170,15 @@ class _MyDonationsTab extends ConsumerWidget {
   }
 
   Future<void> _onConfirm(
-    BuildContext context, WidgetRef ref, String reservationId,
+    BuildContext context,
+    WidgetRef ref,
+    String reservationId,
+    ReservationModel reservation,
   ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           'Confirm Reservation',
           style: TextStyle(fontWeight: FontWeight.w700),
@@ -196,7 +200,7 @@ class _MyDonationsTab extends ConsumerWidget {
             child: const Text(
               'Confirm',
               style: TextStyle(
-                color:      AppColors.primary,
+                color: AppColors.primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -213,29 +217,41 @@ class _MyDonationsTab extends ConsumerWidget {
         .confirmReservation(reservationId);
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? '✅ Reservation confirmed! Chat is now open.' : '❌ Failed to confirm',
+
+    if (success) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ReservationConfirmedScreen(
+            beneficiaryName: reservation.beneficiaryName ?? 'Beneficiary',
+            reservationId: reservationId,
+            donationTitle: reservation.donationTitle,
+          ),
         ),
-        backgroundColor: success ? AppColors.primaryMid : AppColors.error,
-        behavior:        SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('❌ Failed to confirm'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   Future<void> _onCancel(
-    BuildContext context, WidgetRef ref, String reservationId,
+    BuildContext context,
+    WidgetRef ref,
+    String reservationId,
+    ReservationModel reservation,
   ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           'Cancel Reservation',
           style: TextStyle(fontWeight: FontWeight.w700),
@@ -254,7 +270,7 @@ class _MyDonationsTab extends ConsumerWidget {
             child: const Text(
               'Yes, Cancel',
               style: TextStyle(
-                color:      AppColors.error,
+                color: AppColors.error,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -270,15 +286,24 @@ class _MyDonationsTab extends ConsumerWidget {
         .cancelReservation(reservationId);
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? 'Reservation cancelled' : 'Failed to cancel',
+
+    if (success) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ReservationDeclinedScreen(
+            beneficiaryName: reservation.beneficiaryName ?? 'Beneficiary',
+          ),
         ),
-        backgroundColor: success ? AppColors.primaryMid : AppColors.error,
-        behavior:        SnackBarBehavior.floating,
-      ),
-    );
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to cancel'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }
 
@@ -298,8 +323,8 @@ class _MyReservedTab extends ConsumerWidget {
 
     if (state.myReservations.isEmpty) {
       return _EmptyState(
-        emoji:    '🛒',
-        title:    'No reservations yet',
+        emoji: '🛒',
+        title: 'No reservations yet',
         subtitle: 'Reserve a donation from\nthe home page!',
       );
     }
@@ -316,13 +341,14 @@ class _MyReservedTab extends ConsumerWidget {
           return _BeneficiaryReservationCard(
             reservation: reservation,
             onCancel: () => _onCancel(context, ref, reservation.id),
-            onChat:   reservation.status == 'CONFIRMED'
+            onChat: reservation.status == 'CONFIRMED'
                 ? () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => ChatScreen(
                         conversationId: reservation.id,
-                        otherUserName: 'Donor',
+                        otherUserName: reservation.donorName ?? 'Donor',
+                        otherUserAvatarUrl: reservation.donorAvatarUrl,
                         donationTitle: reservation.donationTitle ?? 'Donation',
                         donationStatus: reservation.status,
                       ),
@@ -336,16 +362,18 @@ class _MyReservedTab extends ConsumerWidget {
   }
 
   Future<void> _onCancel(
-    BuildContext context, WidgetRef ref, String reservationId,
+    BuildContext context,
+    WidgetRef ref,
+    String reservationId,
   ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Cancel Reservation',
+          style: TextStyle(fontWeight: FontWeight.w700),
         ),
-        title: const Text('Cancel Reservation',
-            style: TextStyle(fontWeight: FontWeight.w700)),
         content: const Text(
           'Are you sure you want to cancel this reservation?',
           style: TextStyle(color: AppColors.textSecondary),
@@ -360,7 +388,7 @@ class _MyReservedTab extends ConsumerWidget {
             child: const Text(
               'Yes, Cancel',
               style: TextStyle(
-                color:      AppColors.error,
+                color: AppColors.error,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -378,9 +406,9 @@ class _MyReservedTab extends ConsumerWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content:         Text(success ? 'Reservation cancelled' : 'Failed to cancel'),
+        content: Text(success ? 'Reservation cancelled' : 'Failed to cancel'),
         backgroundColor: success ? AppColors.primaryMid : AppColors.error,
-        behavior:        SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -398,155 +426,265 @@ class _DonorReservationCard extends StatelessWidget {
   });
 
   final ReservationModel reservation;
-  final VoidCallback     onConfirm;
-  final VoidCallback     onCancel;
-  final VoidCallback     onChat;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+  final VoidCallback onChat;
 
   @override
   Widget build(BuildContext context) {
-    final isPending   = reservation.status == 'PENDING';
+    final isPending = reservation.status == 'PENDING';
     final isConfirmed = reservation.status == 'CONFIRMED';
-    final reservedByLabel = reservation.beneficiaryName == null ||
-            reservation.beneficiaryName!.trim().isEmpty
-        ? 'Reserved: ${_formatDate(reservation.reservedAt)}'
-        : 'Reserved by ${reservation.beneficiaryName} · ${_formatDate(reservation.reservedAt)}';
+    final beneficiaryName = reservation.beneficiaryName?.isNotEmpty == true
+        ? reservation.beneficiaryName!
+        : 'Someone';
+    final initial = beneficiaryName[0].toUpperCase();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color:        Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color:      Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
-            offset:     const Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-
+          // ── Header (Avatar, Name, Rating, Time) ──
           Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
             child: Row(
               children: [
-                // ── Donation image ───────────────
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: reservation.donationImageUrl != null
-                      ? Image.network(
-                          reservation.donationImageUrl!,
-                          width:  80,
-                          height: 80,
-                          fit:    BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              _ImagePlaceholder(category: reservation.donationCategory),
+                CircleAvatar(
+                  backgroundColor: const Color(0xFF7FA668), // Sage
+                  radius: 18,
+                  backgroundImage: reservation.beneficiaryAvatarUrl != null
+                      ? NetworkImage(reservation.beneficiaryAvatarUrl!)
+                      : null,
+                  child: reservation.beneficiaryAvatarUrl == null
+                      ? Text(
+                          initial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
                         )
-                      : _ImagePlaceholder(category: reservation.donationCategory),
+                      : null,
                 ),
-
-                const SizedBox(width: 12),
-
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Status + title ─────────
+                      Text(
+                        beneficiaryName,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              reservation.donationTitle ?? 'Donation',
-                              style: const TextStyle(
-                                fontSize:   15,
-                                fontWeight: FontWeight.w700,
-                                color:      AppColors.textPrimary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                        children: const [
+                          Icon(
+                            Icons.star_rounded,
+                            color: Color(0xFFF59E0B),
+                            size: 14,
+                          ),
+                          SizedBox(width: 2),
+                          Text(
+                            '4.7',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
                             ),
                           ),
-                          _StatusBadge(status: reservation.status),
                         ],
-                      ),
-
-                      const SizedBox(height: 6),
-
-                      // ── Tags ───────────────────
-                      Wrap(
-                        spacing: 4,
-                        children: [
-                          if (reservation.donationCategory != null)
-                            _SmallTag(
-                              label: _categoryLabel(reservation.donationCategory!),
-                            ),
-                          if (reservation.donationQuantity != null)
-                            _SmallTag(label: reservation.donationQuantity!),
-                        ],
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // ── Reserved date ──────────
-                      Text(
-                        reservedByLabel,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color:    AppColors.textSecondary,
-                        ),
                       ),
                     ],
+                  ),
+                ),
+                Text(
+                  _timeAgo(reservation.reservedAt),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
 
-          // ── Location row ──────────────────────
-          if (reservation.donationMeetingZone != null)
-            Container(
-              margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color:        AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.location_on_outlined,
-                    size:  14,
-                    color: AppColors.textSecondary,
+          // ── Action Text ──────────────────────────
+          if (isPending)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                    height: 1.4,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    reservation.donationMeetingZone!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color:    AppColors.textSecondary,
+                  children: [
+                    TextSpan(
+                      text: '$beneficiaryName ',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
-                  ),
-                ],
+                    const TextSpan(
+                      text:
+                          'reserved your item. Confirm within 2 hours or it will be released.',
+                    ),
+                  ],
+                ),
               ),
             ),
 
-          // ── Action buttons ─────────────────────
+          if (isPending) const SizedBox(height: 12),
+
+          // ── Inner Item Card ──────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.surfaceVariant),
+                borderRadius: BorderRadius.circular(16),
+                color: Colors.white,
+              ),
+              child: Row(
+                children: [
+                  // Image
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: reservation.donationImageUrl != null
+                        ? Image.network(
+                            reservation.donationImageUrl!,
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => _ImagePlaceholder(
+                              category: reservation.donationCategory,
+                            ),
+                          )
+                        : _ImagePlaceholder(
+                            category: reservation.donationCategory,
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          reservation.donationTitle ?? 'Donation',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 4,
+                          children: [
+                            if (reservation.donationCategory != null)
+                              _SmallTag(
+                                label: _categoryLabel(
+                                  reservation.donationCategory!,
+                                ),
+                              ),
+                            if (reservation.donationQuantity != null)
+                              _SmallTag(label: reservation.donationQuantity!),
+                            if (reservation.donationCategory == 'FRESH' ||
+                                reservation.donationCategory == 'Fruits' ||
+                                reservation.donationCategory == 'Vegetables')
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF7FA668),
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                                child: const Text(
+                                  'Fresh',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        if (reservation.donationMeetingZone != null)
+                          Text(
+                            reservation.donationMeetingZone!,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Timer
+                  if (isPending)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        '1:59:56',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── Buttons ──────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Row(
               children: [
-
                 // ── Chat (only if CONFIRMED) ───────
                 if (isConfirmed)
                   Expanded(
                     child: _ActionButton(
-                      label:   'Chat',
-                      icon:    Icons.chat_bubble_outline_rounded,
-                      color:   AppColors.surfaceVariant,
+                      label: 'Chat',
+                      icon: Icons.chat_bubble_outline_rounded,
+                      color: AppColors.surfaceVariant,
                       textColor: AppColors.textPrimary,
-                      onTap:   onChat,
+                      onTap: onChat,
                     ),
                   ),
 
@@ -556,11 +694,11 @@ class _DonorReservationCard extends StatelessWidget {
                 if (isPending)
                   Expanded(
                     child: _ActionButton(
-                      label:     'Confirm',
-                      icon:      Icons.check_circle_outline_rounded,
-                      color:     AppColors.primarySurface,
-                      textColor: AppColors.primary,
-                      onTap:     onConfirm,
+                      label: 'Confirm',
+                      icon: Icons.check,
+                      color: const Color(0xFFE8F5E9),
+                      textColor: const Color(0xFF2E7D32),
+                      onTap: onConfirm,
                     ),
                   ),
 
@@ -570,30 +708,30 @@ class _DonorReservationCard extends StatelessWidget {
                 if (isPending || isConfirmed)
                   Expanded(
                     child: _ActionButton(
-                      label:     isPending ? 'Decline' : 'Cancel',
-                      icon:      Icons.cancel_outlined,
-                      color:     AppColors.errorSurface,
+                      label: isPending ? 'Decline' : 'Cancel',
+                      icon: Icons.close,
+                      color: AppColors.errorSurface,
                       textColor: AppColors.error,
-                      onTap:     onCancel,
+                      onTap: onCancel,
                     ),
                   ),
 
-                // ── Completed / Cancelled state ────
+                // ── Done state ─────────────────────
                 if (!isPending && !isConfirmed)
                   Expanded(
                     child: Container(
                       height: 44,
                       decoration: BoxDecoration(
-                        color:        AppColors.surfaceVariant,
+                        color: AppColors.surfaceVariant,
                         borderRadius: BorderRadius.circular(100),
                       ),
                       child: Center(
                         child: Text(
                           _statusLabel(reservation.status),
                           style: const TextStyle(
-                            fontSize:   13,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color:      AppColors.textSecondary,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ),
@@ -619,231 +757,297 @@ class _BeneficiaryReservationCard extends StatelessWidget {
   });
 
   final ReservationModel reservation;
-  final VoidCallback     onCancel;
-  final VoidCallback?    onChat;
+  final VoidCallback onCancel;
+  final VoidCallback? onChat;
 
   @override
   Widget build(BuildContext context) {
-    final isPending   = reservation.status == 'PENDING';
+    final isPending = reservation.status == 'PENDING';
     final isConfirmed = reservation.status == 'CONFIRMED';
+
+    // Dynamic donor fetching with fallback
+    final String donorName = reservation.donorName?.isNotEmpty == true
+        ? reservation.donorName!
+        : 'Karima';
+    final String initial = donorName[0].toUpperCase();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color:        Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color:      Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
-            offset:     const Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         children: [
-
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                // ── Image ────────────────────────
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Image ────────────────────────
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  width: 100,
+                  height: 100,
                   child: reservation.donationImageUrl != null
                       ? Image.network(
                           reservation.donationImageUrl!,
-                          width:  80,
-                          height: 80,
-                          fit:    BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              _ImagePlaceholder(category: reservation.donationCategory),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => _ImagePlaceholder(
+                            category: reservation.donationCategory,
+                          ),
                         )
-                      : _ImagePlaceholder(category: reservation.donationCategory),
+                      : _ImagePlaceholder(
+                          category: reservation.donationCategory,
+                        ),
                 ),
+              ),
 
-                const SizedBox(width: 12),
+              const SizedBox(width: 14),
 
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              reservation.donationTitle ?? 'Donation',
-                              style: const TextStyle(
-                                fontSize:   15,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            reservation.donationTitle ?? 'Donation',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isConfirmed)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF388E3C,
+                              ), // dark green badge
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: const Text(
+                              '✓ Confirmed',
+                              style: TextStyle(
+                                fontSize: 9,
                                 fontWeight: FontWeight.w700,
-                                color:      AppColors.textPrimary,
+                                color: Colors.white,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          _StatusBadge(status: reservation.status),
-                        ],
-                      ),
+                      ],
+                    ),
 
-                      const SizedBox(height: 6),
+                    const SizedBox(height: 6),
 
-                      Wrap(
-                        spacing: 4,
-                        children: [
-                          if (reservation.donationCategory != null)
-                            _SmallTag(
-                              label: _categoryLabel(reservation.donationCategory!),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: [
+                        if (reservation.donationCategory != null)
+                          _SmallTag(
+                            label: _categoryLabel(
+                              reservation.donationCategory!,
                             ),
-                          if (reservation.donationQuantity != null)
-                            _SmallTag(label: reservation.donationQuantity!),
-                        ],
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // ── Waiting message for PENDING ─
-                      if (isPending)
-                        Row(
-                          children: const [
-                            Icon(
-                              Icons.access_time_rounded,
-                              size:  12,
-                              color: AppColors.warning,
+                          ),
+                        if (reservation.donationQuantity != null)
+                          _SmallTag(label: reservation.donationQuantity!),
+                        if (reservation.donationCategory == 'FRESH' ||
+                            reservation.donationCategory == 'Fruits' ||
+                            reservation.donationCategory == 'Vegetables')
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
                             ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Waiting for donor confirmation...',
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7FA668),
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: const Text(
+                              'Fresh',
                               style: TextStyle(
-                                fontSize: 11,
-                                color:    AppColors.warning,
+                                fontSize: 10,
+                                color: Colors.white,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                      ],
+                    ),
 
-                      if (isConfirmed)
-                        Row(
-                          children: const [
-                            Icon(
-                              Icons.check_circle_rounded,
-                              size:  12,
-                              color: AppColors.primaryMid,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Confirmed! Chat is available',
-                              style: TextStyle(
-                                fontSize:   11,
-                                color:      AppColors.primaryMid,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                    const SizedBox(height: 10),
+
+                    // User info
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: const Color(0xFF7FA668),
+                          radius: 14,
+                          backgroundImage: reservation.donorAvatarUrl != null
+                              ? NetworkImage(reservation.donorAvatarUrl!)
+                              : null,
+                          child: reservation.donorAvatarUrl == null
+                              ? Text(
+                                  initial,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                )
+                              : null,
                         ),
-                    ],
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                donorName,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Row(
+                                children: const [
+                                  Icon(
+                                    Icons.star_rounded,
+                                    color: Color(0xFFF59E0B),
+                                    size: 12,
+                                  ),
+                                  SizedBox(width: 2),
+                                  Text(
+                                    '4.7 · 47 Posts',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── Location ──────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.location_pin,
+                  size: 14,
+                  color: AppColors.error,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    reservation.donationMeetingZone ?? 'Les arcades,Skikda',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Text(
+                  '8km',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF7FA668),
                   ),
                 ),
               ],
             ),
           ),
 
-          // ── Location ──────────────────────────
-          if (reservation.donationMeetingZone != null)
-            Container(
-              margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color:        AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.location_on_outlined,
-                    size:  14,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      reservation.donationMeetingZone!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color:    AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    reservation.status,
-                    style: const TextStyle(
-                      fontSize:   11,
-                      fontWeight: FontWeight.w600,
-                      color:      AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          const SizedBox(height: 16),
 
           // ── Buttons ───────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-            child: Row(
-              children: [
-
-                // ── Chat (only CONFIRMED) ──────────
-                if (isConfirmed && onChat != null)
-                  Expanded(
-                    child: _ActionButton(
-                      label:     'Chat',
-                      icon:      Icons.chat_bubble_outline_rounded,
-                      color:     AppColors.surfaceVariant,
-                      textColor: AppColors.textPrimary,
-                      onTap:     onChat!,
-                    ),
+          Row(
+            children: [
+              if (isPending || isConfirmed)
+                Expanded(
+                  child: _ActionButton(
+                    label: 'Chat',
+                    icon: Icons.chat_bubble,
+                    color: AppColors.surfaceVariant,
+                    textColor: const Color(0xFF2E7D32),
+                    onTap: onChat ?? () {},
                   ),
+                ),
 
-                if (isConfirmed && onChat != null)
-                  const SizedBox(width: 10),
+              if (isPending) const SizedBox(width: 12),
 
-                // ── Cancel (only PENDING/CONFIRMED) ─
-                if (isPending || isConfirmed)
-                  Expanded(
-                    child: _ActionButton(
-                      label:     'Cancel',
-                      icon:      Icons.cancel_outlined,
-                      color:     AppColors.errorSurface,
-                      textColor: AppColors.error,
-                      onTap:     onCancel,
-                    ),
+              if (isPending)
+                Expanded(
+                  child: _ActionButton(
+                    label: 'Cancel',
+                    icon: null,
+                    color: AppColors.errorSurface,
+                    textColor: AppColors.error,
+                    onTap: onCancel,
                   ),
+                ),
 
-                // ── Done state ─────────────────────
-                if (!isPending && !isConfirmed)
-                  Expanded(
-                    child: Container(
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color:        AppColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Center(
-                        child: Text(
-                          _statusLabel(reservation.status),
-                          style: const TextStyle(
-                            fontSize:   13,
-                            fontWeight: FontWeight.w600,
-                            color:      AppColors.textSecondary,
-                          ),
+              if (!isPending && !isConfirmed)
+                Expanded(
+                  child: Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Center(
+                      child: Text(
+                        _statusLabel(reservation.status),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         ],
       ),
@@ -854,80 +1058,46 @@ class _BeneficiaryReservationCard extends StatelessWidget {
 // ── Shared helpers ─────────────────────────────────────
 String _categoryLabel(String c) {
   switch (c) {
-    case 'FRESH':  return 'Fresh';
-    case 'DRY':    return 'Dry';
-    case 'URGENT': return 'Urgent';
-    default:       return c;
+    case 'FRESH':
+      return 'Fresh';
+    case 'DRY':
+      return 'Dry';
+    case 'URGENT':
+      return 'Urgent';
+    default:
+      return c;
   }
 }
 
 String _statusLabel(String s) {
   switch (s) {
-    case 'PENDING':   return 'Pending';
-    case 'CONFIRMED': return 'Confirmed';
-    case 'CANCELLED': return 'Cancelled';
-    case 'COMPLETED': return 'Completed';
-    default:          return s;
+    case 'PENDING':
+      return 'Pending';
+    case 'CONFIRMED':
+      return 'Confirmed';
+    case 'CANCELLED':
+      return 'Cancelled';
+    case 'COMPLETED':
+      return 'Completed';
+    default:
+      return s;
   }
 }
 
-String _formatDate(String dateStr) {
+String _timeAgo(String dateStr) {
   try {
     final d = DateTime.parse(dateStr).toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(d);
+
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+
     return '${d.day}/${d.month}/${d.year}';
   } catch (_) {
     return dateStr;
-  }
-}
-
-// ── Status Badge ───────────────────────────────────────
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    Color bg;
-    Color textColor;
-    String label;
-
-    switch (status) {
-      case 'CONFIRMED':
-        bg        = AppColors.primarySurface;
-        textColor = AppColors.primary;
-        label     = '✓ Confirmed';
-        break;
-      case 'CANCELLED':
-        bg        = AppColors.errorSurface;
-        textColor = AppColors.error;
-        label     = 'Cancelled';
-        break;
-      case 'COMPLETED':
-        bg        = const Color(0xFFE8F5E9);
-        textColor = Colors.green;
-        label     = 'Completed';
-        break;
-      default:
-        bg        = const Color(0xFFFFF8E1);
-        textColor = const Color(0xFFF59E0B);
-        label     = 'Pending';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color:        bg,
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize:   10,
-          fontWeight: FontWeight.w600,
-          color:      textColor,
-        ),
-      ),
-    );
   }
 }
 
@@ -941,14 +1111,14 @@ class _SmallTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color:        AppColors.surfaceVariant,
+        color: AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(100),
       ),
       child: Text(
         label,
         style: const TextStyle(
           fontSize: 10,
-          color:    AppColors.textSecondary,
+          color: AppColors.textSecondary,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -960,16 +1130,16 @@ class _SmallTag extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.label,
-    required this.icon,
+    this.icon,
     required this.color,
     required this.textColor,
     required this.onTap,
   });
 
-  final String       label;
-  final IconData     icon;
-  final Color        color;
-  final Color        textColor;
+  final String label;
+  final IconData? icon;
+  final Color color;
+  final Color textColor;
   final VoidCallback onTap;
 
   @override
@@ -977,22 +1147,24 @@ class _ActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height:  44,
+        height: 44,
         decoration: BoxDecoration(
-          color:        color,
+          color: color,
           borderRadius: BorderRadius.circular(100),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: textColor),
-            const SizedBox(width: 6),
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: textColor),
+              const SizedBox(width: 6),
+            ],
             Text(
               label,
               style: TextStyle(
-                fontSize:   13,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color:      textColor,
+                color: textColor,
               ),
             ),
           ],
@@ -1014,28 +1186,26 @@ class _ImagePlaceholder extends StatelessWidget {
 
     switch (category) {
       case 'FRESH':
-        bg    = AppColors.primarySurface;
+        bg = AppColors.primarySurface;
         emoji = '🥗';
         break;
       case 'URGENT':
-        bg    = AppColors.errorSurface;
+        bg = AppColors.errorSurface;
         emoji = '⚡';
         break;
       default:
-        bg    = AppColors.accentSurface;
+        bg = AppColors.accentSurface;
         emoji = '🌾';
     }
 
     return Container(
-      width:  80,
+      width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color:        bg,
+        color: bg,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Center(
-        child: Text(emoji, style: const TextStyle(fontSize: 32)),
-      ),
+      child: Center(child: Text(emoji, style: const TextStyle(fontSize: 32))),
     );
   }
 }
@@ -1063,9 +1233,9 @@ class _EmptyState extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize:   18,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
-              color:      AppColors.textPrimary,
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -1074,8 +1244,8 @@ class _EmptyState extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 14,
-              color:    AppColors.textSecondary,
-              height:   1.5,
+              color: AppColors.textSecondary,
+              height: 1.5,
             ),
           ),
         ],

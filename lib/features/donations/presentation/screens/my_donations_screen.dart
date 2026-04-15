@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import '../widgets/donation_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,26 +27,21 @@ class _MyDonationsScreenState extends ConsumerState<MyDonationsScreen> {
     final error = state.error;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Donations'),
-      ),
+      appBar: AppBar(title: const Text('My Donations')),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : error != null
-              ? Center(child: Text(error!))
-              : myDonations.isEmpty
-                  ? const Center(child: Text('No donations yet.'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: myDonations.length,
-                      itemBuilder: (context, index) {
-                        final donation = myDonations[index];
-                        return DonationCard(
-                          donation: donation,
-                          onTap: () {},
-                        );
-                      },
-                    ),
+          ? Center(child: Text(error))
+          : myDonations.isEmpty
+          ? const Center(child: Text('No donations yet.'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: myDonations.length,
+              itemBuilder: (context, index) {
+                final donation = myDonations[index];
+                return DonationCard(donation: donation, onTap: () {});
+              },
+            ),
     );
   }
 }

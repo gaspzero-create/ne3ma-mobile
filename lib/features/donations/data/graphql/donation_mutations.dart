@@ -63,7 +63,7 @@ class DonationMutations {
     }
   ''';
 
-static const String confirmReservation = '''
+  static const String confirmReservation = '''
   mutation ConfirmReservation(\$reservationId: ID!) {
     confirmReservation(reservationId: \$reservationId) {
       id
@@ -72,26 +72,6 @@ static const String confirmReservation = '''
       reservedAt
       confirmedAt
       updatedAt
-      beneficiary {
-        id
-        fullName
-        phoneNumber
-        email
-        wilaya
-        baladiya
-      }
-      donation {
-        id
-        title
-        category {
-          id
-          name
-        }
-        imageUrl
-        meetingZone
-        pickupType
-        quantity
-      }
     }
   }
 ''';

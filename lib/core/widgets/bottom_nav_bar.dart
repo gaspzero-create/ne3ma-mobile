@@ -6,9 +6,15 @@ class BottomNavBar extends StatelessWidget {
   const BottomNavBar({
     super.key,
     required this.currentIndex,
+    this.hasUnreadMessages = false,
+    this.pendingReservationsCount = 0,
+    this.onMessagesTap,
   });
 
   final int currentIndex;
+  final bool hasUnreadMessages;
+  final int pendingReservationsCount;
+  final VoidCallback? onMessagesTap;
 
   void _onTap(BuildContext context, int index) {
     switch (index) {
@@ -16,6 +22,7 @@ class BottomNavBar extends StatelessWidget {
         context.go('/home');
         break;
       case 1:
+        if (onMessagesTap != null) onMessagesTap!();
         context.go('/messages');
         break;
       case 2:
@@ -33,11 +40,7 @@ class BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(
-        left: 24,
-        right: 24,
-        bottom: 24,
-      ),
+      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
       child: Container(
         height: 70,
         decoration: BoxDecoration(
@@ -54,7 +57,6 @@ class BottomNavBar extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-
             // ── Home ──────────────────────────────
             _buildNavItem(
               context: context,
@@ -71,21 +73,21 @@ class BottomNavBar extends StatelessWidget {
               icon: Icons.mail_outline_rounded,
               activeIcon: Icons.mail_rounded,
               label: 'Messages',
-              badgeDot: true,
+              badgeDot: hasUnreadMessages,
             ),
 
             // ── Add (center button) ───────────────
             _buildAddButton(context),
 
             // ── Special ───────────────────────────
-         _buildNavItem(
-  context: context,
-  index: 3,
-  icon: Icons.bookmark_border_rounded,      // ← new icon
-  activeIcon: Icons.bookmark_rounded,        // ← new icon
-  label: 'Reserved',                         // ← new label
-  badgeCount: 2,
-),
+            _buildNavItem(
+              context: context,
+              index: 3,
+              icon: Icons.bookmark_border_rounded, // ← new icon
+              activeIcon: Icons.bookmark_rounded, // ← new icon
+              label: 'Reserved', // ← new label
+              badgeDot: pendingReservationsCount > 0,
+            ),
             // ── Profile ───────────────────────────
             _buildNavItem(
               context: context,
@@ -127,9 +129,7 @@ class BottomNavBar extends StatelessWidget {
                 Icon(
                   isActive ? activeIcon : icon,
                   size: 26,
-                  color: isActive
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
+                  color: isActive ? AppColors.primary : AppColors.textSecondary,
                 ),
 
                 // ── Red dot badge ────────────────
@@ -184,12 +184,8 @@ class BottomNavBar extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: isActive
-                    ? FontWeight.w700
-                    : FontWeight.w400,
-                color: isActive
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                color: isActive ? AppColors.primary : AppColors.textSecondary,
               ),
             ),
           ],
@@ -199,57 +195,49 @@ class BottomNavBar extends StatelessWidget {
   }
 
   // ── Center Add Button ──────────────────────────
-Widget _buildAddButton(BuildContext context) {
-  final bool isActive = currentIndex == 2;
+  Widget _buildAddButton(BuildContext context) {
+    final bool isActive = currentIndex == 2;
 
-  return GestureDetector(
-    onTap: () => _onTap(context, 2),
-    behavior: HitTestBehavior.opaque,
-    child: SizedBox(
-      width: 60,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // ── Outlined circle + ─────────────────
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isActive
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
-                width: 1.8,
+    return GestureDetector(
+      onTap: () => _onTap(context, 2),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 60,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // ── Outlined circle + ─────────────────
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isActive ? AppColors.primary : AppColors.textSecondary,
+                  width: 1.8,
+                ),
+              ),
+              child: Icon(
+                Icons.add_rounded,
+                size: 20,
+                color: isActive ? AppColors.primary : AppColors.textSecondary,
               ),
             ),
-            child: Icon(
-              Icons.add_rounded,
-              size: 20,
-              color: isActive
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-            ),
-          ),
 
-          const SizedBox(height: 4),
+            const SizedBox(height: 4),
 
-          Text(
-            'Add',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: isActive
-                  ? FontWeight.w700
-                  : FontWeight.w400,
-              color: isActive
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
+            Text(
+              'Add',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                color: isActive ? AppColors.primary : AppColors.textSecondary,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

@@ -1,6 +1,7 @@
 import 'dart:convert' as convert;
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,13 +18,13 @@ import 'package:ne3ma/features/donations/providers/donation_provider.dart';
 import 'package:ne3ma/features/donations/utils/category_utils.dart';
 
 // ─── Colour tokens (match the design) ─────────────────────────────────────────
-const _kGreen      = Color(0xFF6B8E4E);
+const _kGreen = Color(0xFF6B8E4E);
 const _kGreenLight = Color(0xFFE8F0E1);
-const _kBg         = Color(0xFFF5F5F0);
-const _kFieldBg    = Color(0xFFEFEFEA);
-const _kTextDark   = Color(0xFF1C1C1E);
-const _kTextGrey   = Color(0xFF9E9E9E);
-const _kMapBg      = Color(0xFFDFDFD8);
+const _kBg = Color(0xFFF5F5F0);
+const _kFieldBg = Color(0xFFEFEFEA);
+const _kTextDark = Color(0xFF1C1C1E);
+const _kTextGrey = Color(0xFF9E9E9E);
+const _kMapBg = Color(0xFFDFDFD8);
 
 // Backend enum uses DROP and PICKUP, keep the old UI labels.
 const _pickupTypes = ['DROP', 'PICKUP'];
@@ -77,8 +78,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
     _descCtrl.text = saved.description;
     _category = saved.category.isEmpty ? null : saved.category;
     _pickupType = saved.pickupType;
-    _expiryDate =
-        saved.expiresAt.isEmpty ? null : DateTime.tryParse(saved.expiresAt);
+    _expiryDate = saved.expiresAt.isEmpty
+        ? null
+        : DateTime.tryParse(saved.expiresAt);
     _imageBase64 = saved.imageBase64;
     _checklistConfirmed = saved.checklistConfirmed;
     _selectedLat = location.safeLat;
@@ -88,7 +90,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
       ref.read(addDonationFormProvider.notifier).setTitle(_nameCtrl.text);
     });
     _quantityCtrl.addListener(() {
-      ref.read(addDonationFormProvider.notifier).setQuantity(_quantityCtrl.text);
+      ref
+          .read(addDonationFormProvider.notifier)
+          .setQuantity(_quantityCtrl.text);
     });
     _descCtrl.addListener(() {
       ref.read(addDonationFormProvider.notifier).setDescription(_descCtrl.text);
@@ -144,8 +148,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
     });
 
     try {
-      final compressedFile =
-          await ImageUploadService.compressImage(File(file.path));
+      final compressedFile = await ImageUploadService.compressImage(
+        File(file.path),
+      );
       final bytes = await compressedFile.readAsBytes();
       final base64String = convert.base64Encode(bytes);
 
@@ -191,8 +196,7 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading:
-                  const Icon(Icons.photo_library_outlined, color: _kGreen),
+              leading: const Icon(Icons.photo_library_outlined, color: _kGreen),
               title: const Text('Choose from gallery'),
               onTap: () => _pickImage(ImageSource.gallery),
             ),
@@ -243,9 +247,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _category == resolvedCategory!.id) return;
       setState(() => _category = resolvedCategory!.id);
-      ref.read(addDonationFormProvider.notifier).setCategory(
-            resolvedCategory!.id,
-          );
+      ref
+          .read(addDonationFormProvider.notifier)
+          .setCategory(resolvedCategory!.id);
     });
   }
 
@@ -279,14 +283,17 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
       ),
     );
 
-    final success = await ref.read(donationsProvider.notifier).createDonation(
+    final success = await ref
+        .read(donationsProvider.notifier)
+        .createDonation(
           title: _nameCtrl.text.trim(),
           categoryId: _category!,
           pickupType: _pickupType,
           quantity: _quantityCtrl.text.trim(),
           expiresAt: expiresAt,
-          description:
-              _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+          description: _descCtrl.text.trim().isEmpty
+              ? null
+              : _descCtrl.text.trim(),
           imageBase64: _imageBase64,
           lat: _selectedLat ?? location.safeLat,
           lng: _selectedLng ?? location.safeLng,
@@ -313,7 +320,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
       final state = ref.read(donationsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Error: ${state.error ?? "Failed to create donation"}'),
+          content: Text(
+            '❌ Error: ${state.error ?? "Failed to create donation"}',
+          ),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 5),
@@ -329,6 +338,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
     final categories = categoriesAsync.value ?? const <CategoryModel>[];
 
     _restoreSavedCategory(categories);
+
+    final screenHeight = MediaQuery.of(context).size.height;
+    final responsiveSpacerHeight = math.max(80.0, screenHeight * 0.12);
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -368,9 +380,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
                     onRemove: () => setState(() {
                       _imageFile = null;
                       _imageBase64 = null;
-                      ref.read(addDonationFormProvider.notifier).setImageBase64(
-                            null,
-                          );
+                      ref
+                          .read(addDonationFormProvider.notifier)
+                          .setImageBase64(null);
                     }),
                   ),
                   const SizedBox(height: 24),
@@ -448,7 +460,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
                     value: _pickupType,
                     onChanged: (v) {
                       setState(() => _pickupType = v);
-                      ref.read(addDonationFormProvider.notifier).setPickupType(v);
+                      ref
+                          .read(addDonationFormProvider.notifier)
+                          .setPickupType(v);
                     },
                   ),
                   const SizedBox(height: 24),
@@ -465,7 +479,7 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
                       });
                     },
                   ),
-                
+                  SizedBox(height: responsiveSpacerHeight),
                 ],
               ),
             ),
@@ -491,13 +505,13 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: const TextStyle(
-          color: _kTextDark,
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
-        ),
-      );
+    text,
+    style: const TextStyle(
+      color: _kTextDark,
+      fontWeight: FontWeight.w600,
+      fontSize: 15,
+    ),
+  );
 }
 
 class _AppTextField extends StatelessWidget {
@@ -524,8 +538,9 @@ class _AppTextField extends StatelessWidget {
       focusNode: focusNode,
       keyboardType: keyboardType,
       maxLines: maxLines,
-      textInputAction:
-          nextFocus != null ? TextInputAction.next : TextInputAction.done,
+      textInputAction: nextFocus != null
+          ? TextInputAction.next
+          : TextInputAction.done,
       onFieldSubmitted: (_) {
         if (nextFocus != null) {
           FocusScope.of(context).requestFocus(nextFocus);
@@ -539,8 +554,10 @@ class _AppTextField extends StatelessWidget {
         hintStyle: const TextStyle(color: _kTextGrey, fontSize: 15),
         filled: true,
         fillColor: _kFieldBg,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
           borderSide: const BorderSide(color: _kGreen, width: 1.2),
@@ -579,8 +596,8 @@ class _CategoryDropdown extends StatelessWidget {
     final hint = isLoading
         ? 'Loading...'
         : categories.isEmpty
-            ? 'No categories'
-            : 'Select';
+        ? 'No categories'
+        : 'Select';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -596,10 +613,7 @@ class _CategoryDropdown extends StatelessWidget {
             hint,
             style: const TextStyle(color: _kTextGrey, fontSize: 15),
           ),
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: _kGreen,
-          ),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _kGreen),
           isExpanded: true,
           dropdownColor: Colors.white,
           style: const TextStyle(color: _kTextDark, fontSize: 15),
@@ -624,10 +638,7 @@ class _PickupTypeSelector extends StatelessWidget {
 
   const _PickupTypeSelector({required this.value, required this.onChanged});
 
-  static const _labels = {
-    'DROP': 'Delivery',
-    'PICKUP': 'Pickup',
-  };
+  static const _labels = {'DROP': 'Delivery', 'PICKUP': 'Pickup'};
 
   @override
   Widget build(BuildContext context) {
@@ -640,8 +651,7 @@ class _PickupTypeSelector extends StatelessWidget {
             onTap: () => onChanged(type),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               decoration: BoxDecoration(
                 color: selected ? _kGreen : _kFieldBg,
                 borderRadius: BorderRadius.circular(30),
@@ -671,7 +681,9 @@ class _DateField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = date != null ? DateFormat('dd/MM/yy').format(date!) : 'dd/mm/yy';
+    final label = date != null
+        ? DateFormat('dd/MM/yy').format(date!)
+        : 'dd/mm/yy';
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -736,10 +748,7 @@ class _ImagePickerCard extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(15),
                     child: imageFile != null
-                        ? Image.file(
-                            File(imageFile!.path),
-                            fit: BoxFit.cover,
-                          )
+                        ? Image.file(File(imageFile!.path), fit: BoxFit.cover)
                         : Image.memory(
                             imageBytes!,
                             fit: BoxFit.cover,
@@ -832,9 +841,6 @@ class _MapVisualizationCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-    
-        
-      
           const SizedBox(height: 16),
           LocationPickerWidget(
             initialLat: initialLat,

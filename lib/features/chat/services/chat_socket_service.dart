@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class ChatSocketService {
-  ChatSocketService._();
-  static final ChatSocketService instance = ChatSocketService._();
+  ChatSocketService._internal();
+  static final ChatSocketService instance = ChatSocketService._internal();
+
+  ChatSocketService.detached() : this._internal();
 
   io.Socket? _socket;
   final StreamController<Map<String, dynamic>> _messageController =
