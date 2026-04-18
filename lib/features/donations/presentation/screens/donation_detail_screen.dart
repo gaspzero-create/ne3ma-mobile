@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:ne3ma/core/providers/location_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../data/models/donation_model.dart';
 import '../../providers/donation_provider.dart';
@@ -20,6 +23,17 @@ class DonationDetailScreen extends ConsumerStatefulWidget {
 
 class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
   bool _isReserving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final location = ref.read(locationProvider);
+      if (!location.hasLocation) {
+        ref.read(locationProvider.notifier).fetchLocation();
+      }
+    });
+  }
 
   Future<void> _onReserve() async {
     if (_isReserving) return;
@@ -167,7 +181,7 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
                         const SizedBox(height: 16),
 
                         // ── User Card ────────────
-                        _buildUserCard(),
+                        _buildUserCard(donation),
 
                         const SizedBox(height: 20),
 
@@ -211,7 +225,7 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
         child: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -225,7 +239,7 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
         Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
             shape: BoxShape.circle,
           ),
           child: IconButton(
@@ -250,7 +264,7 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
           ? Image.network(
               donation.imageUrl!,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _imagePlaceholder(donation),
+              errorBuilder: (_, _, _) => _imagePlaceholder(donation),
             )
           : _imagePlaceholder(donation),
     );
@@ -351,7 +365,15 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
   }
 
   // ── User Card ──────────────────────────────────
-  Widget _buildUserCard() {
+  Widget _buildUserCard(DonationModel donation) {
+    final donorName = donation.donorName?.trim().isNotEmpty == true
+        ? donation.donorName!.trim()
+        : 'Community Member';
+    final donorInitial = donorName.characters.first.toUpperCase();
+    final donorLocation = _donorLocation(donation);
+    final donorRole = _formatUserRole(donation.donorRole);
+    final donorBadge = _formatBadge(donation.donorBadge);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -364,25 +386,32 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
           CircleAvatar(
             radius: 22,
             backgroundColor: AppColors.primaryMid,
-            child: const Text(
-              'U',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            backgroundImage: donation.donorAvatarUrl != null &&
+                    donation.donorAvatarUrl!.isNotEmpty
+                ? NetworkImage(donation.donorAvatarUrl!)
+                : null,
+            child: donation.donorAvatarUrl == null ||
+                    donation.donorAvatarUrl!.isEmpty
+                ? Text(
+                    donorInitial,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(width: 12),
 
-          // ── Name + rating ──────────────────────
+          // ── Name + donor info ─────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'User L.',
-                  style: TextStyle(
+                Text(
+                  donorName,
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
@@ -391,32 +420,39 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
                 Row(
                   children: [
                     const Icon(
-                      Icons.star_rounded,
+                      Icons.location_on_outlined,
                       size: 14,
-                      color: Color(0xFFFFC107),
+                      color: AppColors.textSecondary,
                     ),
-                    const Text(
-                      ' 4.6',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                    Flexible(
+                      child: Text(
+                        ' $donorLocation',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
-                    const Text(
-                      '  47 Posts',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    if (donorRole != null)
+                      Flexible(
+                        child: Text(
+                          '  •  $donorRole',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ],
             ),
           ),
 
-          // ── Verified badge ─────────────────────
+          // ── Badge ──────────────────────────────
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 10,
@@ -428,16 +464,16 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(
-                  Icons.verified_rounded,
+              children: [
+                const Icon(
+                  Icons.workspace_premium_rounded,
                   size: 12,
                   color: AppColors.primary,
                 ),
-                SizedBox(width: 4),
+                const SizedBox(width: 4),
                 Text(
-                  'Verified',
-                  style: TextStyle(
+                  donorBadge ?? 'Member',
+                  style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
@@ -496,6 +532,24 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
 
   // ── Location ───────────────────────────────────
   Widget _buildLocation(DonationModel donation) {
+    final locationState = ref.watch(locationProvider);
+    final hasDonationLocation = donation.lat != null && donation.lng != null;
+
+    if (!hasDonationLocation) {
+      return _buildLocationPlaceholder(donation);
+    }
+
+    final donationPoint = LatLng(donation.lat!, donation.lng!);
+    final userPoint = locationState.hasLocation
+        ? LatLng(locationState.lat!, locationState.lng!)
+        : null;
+    final center = userPoint == null
+        ? donationPoint
+        : LatLng(
+            (donationPoint.latitude + userPoint.latitude) / 2,
+            (donationPoint.longitude + userPoint.longitude) / 2,
+          );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -509,7 +563,149 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
         ),
         const SizedBox(height: 10),
 
-        // ── Map placeholder ────────────────────
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: 150,
+            width: double.infinity,
+            child: Stack(
+              children: [
+                FlutterMap(
+                  options: MapOptions(
+                    initialCenter: center,
+                    initialZoom: _mapZoomForPoints(
+                      donationPoint: donationPoint,
+                      userPoint: userPoint,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.ne3ma',
+                    ),
+                    if (userPoint != null)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: [userPoint, donationPoint],
+                            color: AppColors.primary.withValues(alpha: 0.28),
+                            strokeWidth: 4,
+                          ),
+                        ],
+                      ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: donationPoint,
+                          width: 52,
+                          height: 52,
+                          child: const _MapMarker(
+                            icon: Icons.location_on_rounded,
+                            color: AppColors.primary,
+                            backgroundColor: Colors.white,
+                          ),
+                        ),
+                        if (userPoint != null)
+                          Marker(
+                            point: userPoint,
+                            width: 44,
+                            height: 44,
+                            child: const _MapMarker(
+                              icon: Icons.my_location_rounded,
+                              color: AppColors.accent,
+                              backgroundColor: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+                Positioned(
+                  left: 10,
+                  right: 54,
+                  bottom: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          donation.meetingZone ?? 'Meeting zone',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (donation.distanceKm != null || userPoint != null)
+                          const SizedBox(height: 2),
+                        if (donation.distanceKm != null)
+                          Text(
+                            '${donation.distanceKm!.toStringAsFixed(1)} km away',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          )
+                        else if (userPoint != null)
+                          const Text(
+                            'Showing your location and donation point',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.96),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.map_rounded,
+                      size: 16,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationPlaceholder(DonationModel donation) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Location:',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 10),
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Container(
@@ -518,7 +714,6 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
             color: const Color(0xFFE8F0E8),
             child: Stack(
               children: [
-                // Map placeholder
                 Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -548,19 +743,17 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
                     ],
                   ),
                 ),
-
-                // ── Expand icon ─────────────────
                 Positioned(
                   top: 10,
                   right: 10,
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Colors.white.withValues(alpha: 0.96),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
-                      Icons.open_in_full_rounded,
+                      Icons.map_rounded,
                       size: 16,
                       color: AppColors.textPrimary,
                     ),
@@ -574,6 +767,26 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
     );
   }
 
+  double _mapZoomForPoints({
+    required LatLng donationPoint,
+    LatLng? userPoint,
+  }) {
+    if (userPoint == null) return 15;
+
+    final distanceKm = const Distance().as(
+      LengthUnit.Kilometer,
+      donationPoint,
+      userPoint,
+    );
+
+    if (distanceKm < 1) return 15;
+    if (distanceKm < 3) return 14;
+    if (distanceKm < 8) return 13;
+    if (distanceKm < 15) return 12;
+    if (distanceKm < 30) return 11;
+    return 10;
+  }
+
   // ── Bottom Bar ─────────────────────────────────
   Widget _buildBottomBar(DonationModel donation) {
     return Container(
@@ -582,7 +795,7 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),
@@ -692,6 +905,58 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
       default:          return status;
     }
   }
+
+  String _donorLocation(DonationModel donation) {
+    final baladiya = donation.donorBaladiya?.trim();
+    final wilaya = donation.donorWilaya?.trim();
+
+    if (baladiya != null &&
+        baladiya.isNotEmpty &&
+        wilaya != null &&
+        wilaya.isNotEmpty) {
+      return '$baladiya, $wilaya';
+    }
+    if (baladiya != null && baladiya.isNotEmpty) {
+      return baladiya;
+    }
+    if (wilaya != null && wilaya.isNotEmpty) {
+      return wilaya;
+    }
+    if (donation.meetingZone?.trim().isNotEmpty == true) {
+      return donation.meetingZone!.trim();
+    }
+    return 'Location unavailable';
+  }
+
+  String? _formatUserRole(String? rawRole) {
+    switch (rawRole) {
+      case 'ASSOCIATION':
+        return 'Association';
+      case 'MAYOR':
+        return 'Mayor';
+      case 'ADMIN':
+        return 'Admin';
+      case 'USER':
+        return 'User';
+      default:
+        return null;
+    }
+  }
+
+  String? _formatBadge(String? rawBadge) {
+    switch (rawBadge) {
+      case 'FOOD_DONATOR':
+        return 'Food Donator';
+      case 'BRONZE':
+        return 'Bronze';
+      case 'SILVER':
+        return 'Silver';
+      case 'GOLD':
+        return 'Gold';
+      default:
+        return null;
+    }
+  }
 }
 
 // ── Tag Widget ─────────────────────────────────────────
@@ -754,6 +1019,41 @@ class _InfoRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MapMarker extends StatelessWidget {
+  const _MapMarker({
+    required this.icon,
+    required this.color,
+    required this.backgroundColor,
+    this.size = 20,
+  });
+
+  final IconData icon;
+  final Color color;
+  final Color backgroundColor;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        shape: BoxShape.circle,
+        border: Border.all(color: color, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Icon(icon, size: size, color: color),
     );
   }
 }

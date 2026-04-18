@@ -2,19 +2,16 @@ name: ne3ma
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 version: 1.0.0+1
 
 environment:
   sdk: ^3.10.1
 
-
 dependencies:
   flutter:
     sdk: flutter
-
 
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.5.1
@@ -52,9 +49,9 @@ dependencies:
   socket_io_client: ^3.0.2
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
-  
-
-
+  flutter_localizations:
+    sdk: flutter
+  shared_preferences: ^2.5.5
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -62,12 +59,9 @@ flutter_launcher_icons:
   image_path: "assets/images/NE3MA-SVG 1 (1).png"
   min_sdk_android: 21
 
-
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
 
   flutter_lints: ^6.0.0
   build_runner: ^2.4.9
@@ -82,6 +76,7 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
@@ -94,8 +89,6 @@ flutter:
     - assets/icons/
     - assets/animations/
     - assets/animations/party-popper 1.svg
- 
-
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

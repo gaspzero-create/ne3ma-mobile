@@ -9,6 +9,13 @@ class DonationModel {
   final String status; // AVAILABLE | RESERVED | CONFIRMED | COMPLETED | EXPIRED
   final String pickupType; // PICKUP | DROP
   final String quantity;
+  final String? donorId;
+  final String? donorName;
+  final String? donorAvatarUrl;
+  final String? donorBadge;
+  final String? donorRole;
+  final String? donorWilaya;
+  final String? donorBaladiya;
   final String expiresAt;
   final String? imageUrl;
   final double? lat;
@@ -17,6 +24,7 @@ class DonationModel {
   final double? distanceKm;
   final bool? checklistConfirmed;
   final String createdAt;
+  final String? updatedAt;
 
   const DonationModel({
     required this.id,
@@ -27,6 +35,13 @@ class DonationModel {
     required this.status,
     required this.pickupType,
     required this.quantity,
+    this.donorId,
+    this.donorName,
+    this.donorAvatarUrl,
+    this.donorBadge,
+    this.donorRole,
+    this.donorWilaya,
+    this.donorBaladiya,
     required this.expiresAt,
     this.imageUrl,
     this.lat,
@@ -35,10 +50,14 @@ class DonationModel {
     this.distanceKm,
     this.checklistConfirmed,
     required this.createdAt,
+    this.updatedAt,
   });
 
   factory DonationModel.fromMap(Map<String, dynamic> map) {
     final parsedCategory = _parseCategory(map['category']);
+    final donor = map['donor'] is Map
+        ? Map<String, dynamic>.from(map['donor'] as Map)
+        : null;
 
     return DonationModel(
       id: map['id'] ?? '',
@@ -49,6 +68,13 @@ class DonationModel {
       status: map['status'] ?? 'AVAILABLE',
       pickupType: map['pickupType'] ?? 'PICKUP',
       quantity: map['quantity'] ?? '',
+      donorId: donor?['id'],
+      donorName: donor?['fullName'] ?? donor?['name'],
+      donorAvatarUrl: donor?['avatarUrl'],
+      donorBadge: donor?['badge'],
+      donorRole: donor?['role'],
+      donorWilaya: donor?['wilaya'],
+      donorBaladiya: donor?['baladiya'],
       expiresAt: map['expiresAt'] ?? '',
       imageUrl: map['imageUrl'],
       lat: (map['lat'] as num?)?.toDouble(),
@@ -57,6 +83,7 @@ class DonationModel {
       distanceKm: (map['distanceKm'] as num?)?.toDouble(),
       checklistConfirmed: map['checklistConfirmed'],
       createdAt: map['createdAt'] ?? '',
+      updatedAt: map['updatedAt'],
     );
   }
 

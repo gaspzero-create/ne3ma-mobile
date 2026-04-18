@@ -149,6 +149,8 @@ class _MyDonationsTab extends ConsumerWidget {
             reservation: reservation,
             onConfirm: () =>
                 _onConfirm(context, ref, reservation.id, reservation),
+            onComplete: () =>
+                _onComplete(context, ref, reservation.id, reservation),
             onCancel: () =>
                 _onCancel(context, ref, reservation.id, reservation),
             onChat: () => Navigator.push(
@@ -240,6 +242,67 @@ class _MyDonationsTab extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Future<void> _onComplete(
+    BuildContext context,
+    WidgetRef ref,
+    String reservationId,
+    ReservationModel reservation,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Complete Donation',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: const Text(
+          'Has the beneficiary received the donation? This action cannot be undone.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              'Not yet',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Yes, Complete',
+              style: TextStyle(
+                color: Color(0xFF2E7D32),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    debugPrint('📤 SpecialTab: Completing $reservationId...');
+    final success = await ref
+        .read(donationsProvider.notifier)
+        .completeReservation(reservationId);
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? '✅ Donation completed!' : '❌ Failed to complete',
+        ),
+        backgroundColor: success ? AppColors.primaryMid : AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   Future<void> _onCancel(
@@ -421,12 +484,14 @@ class _DonorReservationCard extends StatelessWidget {
   const _DonorReservationCard({
     required this.reservation,
     required this.onConfirm,
+    required this.onComplete,
     required this.onCancel,
     required this.onChat,
   });
 
   final ReservationModel reservation;
   final VoidCallback onConfirm;
+  final VoidCallback onComplete;
   final VoidCallback onCancel;
   final VoidCallback onChat;
 
@@ -690,6 +755,20 @@ class _DonorReservationCard extends StatelessWidget {
 
                 if (isConfirmed) const SizedBox(width: 10),
 
+                // ── Complete (only if CONFIRMED) ───
+                if (isConfirmed)
+                  Expanded(
+                    child: _ActionButton(
+                      label: 'Complete',
+                      icon: Icons.check_circle_outline_rounded,
+                      color: const Color(0xFFE8F5E9),
+                      textColor: const Color(0xFF2E7D32),
+                      onTap: onComplete,
+                    ),
+                  ),
+
+                if (isConfirmed) const SizedBox(width: 10),
+
                 // ── Confirm (only if PENDING) ──────
                 if (isPending)
                   Expanded(
@@ -704,7 +783,7 @@ class _DonorReservationCard extends StatelessWidget {
 
                 if (isPending) const SizedBox(width: 10),
 
-                // ── Cancel ─────────────────────────
+                // ── Cancel / Decline ───────────────
                 if (isPending || isConfirmed)
                   Expanded(
                     child: _ActionButton(
@@ -831,7 +910,7 @@ class _BeneficiaryReservationCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (isConfirmed)
+                        if (isConfirmed || reservation.status == 'COMPLETED')
                           Container(
                             margin: const EdgeInsets.only(left: 8),
                             padding: const EdgeInsets.symmetric(
@@ -839,14 +918,16 @@ class _BeneficiaryReservationCard extends StatelessWidget {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(
-                                0xFF388E3C,
-                              ), // dark green badge
+                              color: reservation.status == 'COMPLETED'
+                                  ? const Color(0xFF1B5E20)
+                                  : const Color(0xFF388E3C),
                               borderRadius: BorderRadius.circular(100),
                             ),
-                            child: const Text(
-                              '✓ Confirmed',
-                              style: TextStyle(
+                            child: Text(
+                              reservation.status == 'COMPLETED'
+                                  ? '✓ Completed'
+                                  : '✓ Confirmed',
+                              style: const TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,

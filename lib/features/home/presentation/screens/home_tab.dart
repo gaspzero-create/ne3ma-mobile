@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:ne3ma/core/constants/app_colors.dart';
 import 'package:ne3ma/core/providers/location_provider.dart';
 import 'package:ne3ma/features/donations/data/models/donation_model.dart';
+import 'package:ne3ma/features/donations/presentation/screens/add_donation_screen.dart';
 import 'package:ne3ma/features/donations/providers/donation_provider.dart';
 import 'package:ne3ma/features/profile/data/model/profile_model.dart';
 import 'package:ne3ma/features/profile/provider/profile_provider.dart';
+import 'package:ne3ma/l10n/generated/app_localizations.dart';
 
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
@@ -23,20 +25,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   String? _locationCountry;
   String? _locationLabel;
 
-  static const _filterOptions = <String?>[
-    null,
-    'FRESH',
-    'DRY',
-    'URGENT',
-    'MY',
-  ];
-  static const _filterLabels = <String?>[
-    'All',
-    'Fresh',
-    'Dry',
-    'Urgent',
-    'My Donations',
-  ];
+  static const _filterOptions = <String?>[null, 'FRESH', 'DRY', 'URGENT', 'MY'];
+
+  List<String> _getFilterLabels(AppLocalizations loc) {
+    return [loc.all, loc.fresh, loc.dry, loc.urgent, loc.myDonations];
+  }
 
   @override
   void initState() {
@@ -69,10 +62,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       return;
     }
 
-    await _resolveLocationLabel(
-      lat: location.lat!,
-      lng: location.lng!,
-    );
+    await _resolveLocationLabel(lat: location.lat!, lng: location.lng!);
   }
 
   Future<void> _resolveLocationLabel({
@@ -83,10 +73,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       final placemarks = await placemarkFromCoordinates(lat, lng);
       final placemark = placemarks.isNotEmpty ? placemarks.first : null;
 
-      final country = _firstNonEmpty([
-        placemark?.country,
-        'Algeria',
-      ]);
+      final country = _firstNonEmpty([placemark?.country, 'Algeria']);
       final locality = _firstNonEmpty([
         placemark?.locality,
         placemark?.subAdministrativeArea,
@@ -122,10 +109,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   }
 
   void _fetchDonations({required double lat, required double lng}) {
-    ref.read(donationsProvider.notifier).fetchNearbyDonations(
-      lat: lat,
-      lng: lng,
-    );
+    ref
+        .read(donationsProvider.notifier)
+        .fetchNearbyDonations(lat: lat, lng: lng);
   }
 
   Future<void> _onRefresh() async {
@@ -140,6 +126,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   Widget build(BuildContext context) {
     final donationsState = ref.watch(donationsProvider);
     final profile = ref.watch(profileProvider).profile;
+    final loc = AppLocalizations.of(context);
 
     final activeFilter = donationsState.filter.categoryId;
     final isMyDonations = activeFilter == 'MY';
@@ -150,7 +137,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
     final displayCountry = _locationCountry ?? 'Algeria';
     final displayLocation =
-        _locationLabel ?? _profileLocationLabel(profile) ?? 'Location unavailable';
+        _locationLabel ??
+        _profileLocationLabel(profile) ??
+        'Location unavailable';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -182,26 +171,30 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  displayCountry,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w400,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    displayCountry,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w400,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  displayLocation,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
+                                  Text(
+                                    displayLocation,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                             const SizedBox(width: 4),
                             const Icon(
@@ -212,10 +205,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           ],
                         ),
                       ),
-                      _IconButton(
-                        icon: Icons.search_rounded,
-                        onTap: () {},
-                      ),
+                      _IconButton(icon: Icons.search_rounded, onTap: () {}),
                       const SizedBox(width: 8),
                       _IconButton(
                         icon: Icons.notifications_outlined,
@@ -237,7 +227,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                             ),
                           ),
                           child: ClipOval(
-                            child: (profile?.avatarUrl != null &&
+                            child:
+                                (profile?.avatarUrl != null &&
                                     (profile?.avatarUrl ?? '').isNotEmpty)
                                 ? Image.network(
                                     profile!.avatarUrl!,
@@ -264,19 +255,21 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     ),
                     child: TextField(
                       controller: _searchController,
-                      decoration: const InputDecoration(
-                        hintText: 'Search Anything...',
-                        hintStyle: TextStyle(
+                      decoration: InputDecoration(
+                        hintText: loc.searchAnything,
+                        hintStyle: const TextStyle(
                           color: AppColors.textHint,
                           fontSize: 14,
                         ),
-                        prefixIcon: Icon(
+                        prefixIcon: const Icon(
                           Icons.search_rounded,
                           color: AppColors.textHint,
                           size: 20,
                         ),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 14),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                        ),
                       ),
                     ),
                   ),
@@ -290,18 +283,24 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     child: Row(
                       children: List.generate(_filterOptions.length, (i) {
                         final option = _filterOptions[i];
-                        final label = _filterLabels[i]!;
+                        final label = _getFilterLabels(loc)[i];
                         final selected = activeFilter == option;
 
                         return GestureDetector(
                           onTap: () {
                             if (option == 'MY') {
-                              ref.read(donationsProvider.notifier).fetchMyDonations();
-                              ref.read(donationsProvider.notifier).setFilter('MY');
+                              ref
+                                  .read(donationsProvider.notifier)
+                                  .fetchMyDonations();
+                              ref
+                                  .read(donationsProvider.notifier)
+                                  .setFilter('MY');
                               return;
                             }
 
-                            ref.read(donationsProvider.notifier).setFilter(option);
+                            ref
+                                .read(donationsProvider.notifier)
+                                .setFilter(option);
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
@@ -337,11 +336,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
                       child: Text(
-                        'Near You',
-                        style: TextStyle(
+                        loc.nearYou,
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
@@ -364,16 +363,15 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 const SliverToBoxAdapter(child: _EmptyState())
               else
                 SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final entry = grouped.entries.toList()[index];
-                      return _buildCategorySection(
-                        category: entry.key,
-                        donations: entry.value,
-                      );
-                    },
-                    childCount: grouped.length,
-                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final entry = grouped.entries.toList()[index];
+                    return _buildCategorySection(
+                      category: entry.key,
+                      donations: entry.value,
+                      isMyDonations: isMyDonations,
+                      loc: loc,
+                    );
+                  }, childCount: grouped.length),
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
@@ -393,9 +391,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           color: AppColors.primarySurface,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: const Center(
-          child: Text('🍽️', style: TextStyle(fontSize: 48)),
-        ),
+        child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 48))),
       );
     }
 
@@ -457,7 +453,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       color: AppColors.primarySurface,
       child: Center(
         child: Text(
-          donation.isFresh ? '🥗' : donation.isUrgent ? '⚡' : '🌾',
+          donation.isFresh
+              ? '🥗'
+              : donation.isUrgent
+              ? '⚡'
+              : '🌾',
           style: const TextStyle(fontSize: 52),
         ),
       ),
@@ -467,6 +467,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   Widget _buildCategorySection({
     required String category,
     required List<DonationModel> donations,
+    required bool isMyDonations,
+    required AppLocalizations loc,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,7 +479,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                _categoryLabel(category),
+                _categoryLabel(category, loc),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -485,10 +487,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ),
               ),
               GestureDetector(
-                onTap: () => ref.read(donationsProvider.notifier).setFilter(category),
-                child: const Text(
-                  'see all',
-                  style: TextStyle(
+                onTap: () =>
+                    ref.read(donationsProvider.notifier).setFilter(category),
+                child: Text(
+                  loc.seeAll,
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.primaryMid,
                     fontWeight: FontWeight.w600,
@@ -498,12 +501,22 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             ],
           ),
         ),
-        ...donations.map(_buildHorizontalCard),
+        ...donations.map((donation) {
+          return _buildHorizontalCard(
+            donation,
+            isMyDonationCard: isMyDonations,
+            loc: loc,
+          );
+        }),
       ],
     );
   }
 
-  Widget _buildHorizontalCard(DonationModel donation) {
+  Widget _buildHorizontalCard(
+    DonationModel donation, {
+    required bool isMyDonationCard,
+    required AppLocalizations loc,
+  }) {
     return GestureDetector(
       onTap: () {
         context.go('/donation/${donation.id}', extra: donation);
@@ -603,9 +616,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                       spacing: 4,
                       runSpacing: 4,
                       children: [
-                        _Tag(label: _categoryLabel(donation.category)),
+                        _Tag(label: _categoryLabel(donation.category, loc)),
                         _Tag(label: donation.quantity),
-                        _CategoryTag(category: donation.category),
+                        _CategoryTag(category: donation.category, loc: loc),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -664,7 +677,26 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        if (donation.isAvailable)
+                        if (isMyDonationCard)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _CardActionButton(
+                                label: loc.update,
+                                backgroundColor: AppColors.primarySurface,
+                                textColor: AppColors.primary,
+                                onTap: () => _onUpdateDonation(donation),
+                              ),
+                              const SizedBox(width: 6),
+                              _CardActionButton(
+                                label: loc.delete,
+                                backgroundColor: AppColors.errorSurface,
+                                textColor: AppColors.error,
+                                onTap: () => _onDeleteDonation(donation),
+                              ),
+                            ],
+                          )
+                        else if (donation.isAvailable)
                           GestureDetector(
                             onTap: () async {
                               final success = await ref
@@ -694,9 +726,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                                 color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(100),
                               ),
-                              child: const Text(
-                                'Reserve',
-                                style: TextStyle(
+                              child: Text(
+                                loc.reserve,
+                                style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
@@ -723,11 +755,15 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       color: donation.isFresh
           ? AppColors.primarySurface
           : donation.isUrgent
-              ? AppColors.errorSurface
-              : AppColors.accentSurface,
+          ? AppColors.errorSurface
+          : AppColors.accentSurface,
       child: Center(
         child: Text(
-          donation.isFresh ? '🥗' : donation.isUrgent ? '⚡' : '🌾',
+          donation.isFresh
+              ? '🥗'
+              : donation.isUrgent
+              ? '⚡'
+              : '🌾',
           style: const TextStyle(fontSize: 32),
         ),
       ),
@@ -744,14 +780,14 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     return grouped;
   }
 
-  String _categoryLabel(String category) {
+  String _categoryLabel(String category, AppLocalizations loc) {
     switch (category) {
       case 'FRESH':
-        return 'Fresh';
+        return loc.fresh;
       case 'DRY':
-        return 'Dry Goods';
+        return loc.dry;
       case 'URGENT':
-        return 'Urgent';
+        return loc.urgent;
       default:
         return category;
     }
@@ -771,12 +807,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   }
 
   Widget _buildProfilePlaceholder() {
-    return const Center(
-      child: Text(
-        '👤',
-        style: TextStyle(fontSize: 20),
-      ),
-    );
+    return const Center(child: Text('👤', style: TextStyle(fontSize: 20)));
   }
 
   String? _profileLocationLabel(ProfileModel? profile) {
@@ -802,6 +833,69 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       }
     }
     return null;
+  }
+
+  Future<void> _onUpdateDonation(DonationModel donation) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddDonationScreen(initialDonation: donation),
+      ),
+    );
+  }
+
+  Future<void> _onDeleteDonation(DonationModel donation) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Delete Donation',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          'Delete "${donation.title}"? This action cannot be undone.',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    final success = await ref
+        .read(donationsProvider.notifier)
+        .deleteDonation(donation.id);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Donation deleted successfully'
+              : 'Failed to delete donation',
+        ),
+        backgroundColor: success ? AppColors.primaryMid : AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 }
 
@@ -884,10 +978,47 @@ class _Tag extends StatelessWidget {
   }
 }
 
+class _CardActionButton extends StatelessWidget {
+  const _CardActionButton({
+    required this.label,
+    required this.backgroundColor,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(100),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: textColor,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CategoryTag extends StatelessWidget {
-  const _CategoryTag({required this.category});
+  const _CategoryTag({required this.category, required this.loc});
 
   final String category;
+  final AppLocalizations loc;
 
   @override
   Widget build(BuildContext context) {
@@ -899,17 +1030,17 @@ class _CategoryTag extends StatelessWidget {
       case 'FRESH':
         bg = AppColors.primarySurface;
         textColor = AppColors.primary;
-        label = 'Fresh';
+        label = loc.fresh;
         break;
       case 'URGENT':
         bg = AppColors.errorSurface;
         textColor = AppColors.error;
-        label = 'Urgent';
+        label = loc.urgent;
         break;
       default:
         bg = AppColors.accentSurface;
         textColor = AppColors.accent;
-        label = 'Dry';
+        label = loc.dry;
     }
 
     return Container(

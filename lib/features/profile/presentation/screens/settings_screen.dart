@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ne3ma/l10n/generated/app_localizations.dart';
 import 'package:ne3ma/features/donations/providers/add_donation_form_provider.dart';
 import 'package:ne3ma/features/donations/providers/donation_provider.dart';
 import 'package:ne3ma/features/profile/data/model/profile_model.dart';
 import 'package:ne3ma/features/profile/provider/profile_provider.dart';
+import 'package:ne3ma/core/providers/locale_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -41,9 +43,9 @@ class SettingsScreen extends ConsumerWidget {
           size: 20,
         ),
       ),
-      title: const Text(
-        'Settings',
-        style: TextStyle(
+      title: Text(
+        AppLocalizations.of(context).settings,
+        style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,
@@ -59,6 +61,7 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     ProfileModel? profile,
   ) {
+    final loc = AppLocalizations.of(context);
     return ListView(
       padding: EdgeInsets.only(
         left: AppSizes.screenPadding,
@@ -72,29 +75,40 @@ class SettingsScreen extends ConsumerWidget {
         const SizedBox(height: AppSizes.xl),
 
         // ── Account Section ──────────────────────
-        _SectionLabel(label: 'Account'),
+        _SectionLabel(label: loc.account),
         const SizedBox(height: AppSizes.sm),
         _SettingsCard(
           items: [
             _SettingsItem(
               icon: Icons.person_outline_rounded,
-              label: 'Edit profile',
+              label: loc.editProfile,
               onTap: () async => context.go('/profile'),
             ),
             _SettingsItem(
               icon: Icons.security_outlined,
-              label: 'Security',
+              label: loc.security,
               onTap: () async {},
             ),
             _SettingsItem(
-              icon: Icons.notifications_outlined,
-              label: 'Notifications',
-              onTap: () async {},
+              icon: Icons.language_rounded,
+              label: loc.language,
+              onTap: () async {
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: AppColors.background,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  builder: (context) => const _LanguageSelectionSheet(),
+                );
+              },
             ),
             _SettingsItem(
               icon: Icons.lock_outline_rounded,
-              label: 'Privacy',
-              onTap: () async {},
+              label: loc.privacy,
+              onTap: () async => context.push('/privacy-policy'),
               showDivider: false,
             ),
           ],
@@ -103,24 +117,19 @@ class SettingsScreen extends ConsumerWidget {
         const SizedBox(height: AppSizes.lg),
 
         // ── Support & About Section ──────────────
-        _SectionLabel(label: 'Support & About'),
+        _SectionLabel(label: loc.supportAndAbout),
         const SizedBox(height: AppSizes.sm),
         _SettingsCard(
           items: [
             _SettingsItem(
-              icon: Icons.credit_card_outlined,
-              label: 'My Subscription',
-              onTap: () async {},
-            ),
-            _SettingsItem(
               icon: Icons.help_outline_rounded,
-              label: 'Help & Support',
-              onTap: () async {},
+              label: loc.helpAndSupport,
+              onTap: () async => context.push('/help-support'),
             ),
             _SettingsItem(
               icon: Icons.info_outline_rounded,
-              label: 'Terms and Policies',
-              onTap: () async {},
+              label: loc.termsAndPolicies,
+              onTap: () async => context.push('/terms-and-conditions'),
               showDivider: false,
             ),
           ],
@@ -129,18 +138,18 @@ class SettingsScreen extends ConsumerWidget {
         const SizedBox(height: AppSizes.lg),
 
         // ── Actions Section ──────────────────────
-        _SectionLabel(label: 'Actions'),
+        _SectionLabel(label: loc.actions),
         const SizedBox(height: AppSizes.sm),
         _SettingsCard(
           items: [
             _SettingsItem(
               icon: Icons.flag_outlined,
-              label: 'Report a problem',
+              label: loc.reportProblem,
               onTap: () async {},
             ),
             _SettingsItem(
               icon: Icons.logout_rounded,
-              label: 'Log out',
+              label: loc.logOut,
               labelColor: AppColors.error,
               iconColor: AppColors.error,
               onTap: () async {
@@ -269,10 +278,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           content: const Text(
             'Are you sure you want to log out? You\'ll need to sign in again to access your account.',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
           actions: [
             TextButton(
@@ -399,6 +405,94 @@ class _SettingsItem extends StatelessWidget {
             child: Divider(height: 1, color: AppColors.border.withOpacity(0.6)),
           ),
       ],
+    );
+  }
+}
+
+// ── Language Selection Sheet ───────────────────────────
+class _LanguageSelectionSheet extends ConsumerStatefulWidget {
+  const _LanguageSelectionSheet();
+
+  @override
+  ConsumerState<_LanguageSelectionSheet> createState() =>
+      _LanguageSelectionSheetState();
+}
+
+class _LanguageSelectionSheetState
+    extends ConsumerState<_LanguageSelectionSheet> {
+  @override
+  Widget build(BuildContext context) {
+    final currentLocale = ref.watch(localeProvider);
+    final loc = AppLocalizations.of(context);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            loc.selectLanguage,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildLanguageOption('English', 'en', currentLocale),
+          _buildLanguageOption('العربية', 'ar', currentLocale),
+          _buildLanguageOption('Français', 'fr', currentLocale),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageOption(String title, String code, Locale currentLocale) {
+    final isSelected = currentLocale.languageCode == code;
+    return InkWell(
+      onTap: () {
+        ref.read(localeProvider.notifier).setLocale(Locale(code));
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) Navigator.pop(context);
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppColors.border.withOpacity(0.3)),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? AppColors.primary : AppColors.textPrimary,
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -5,31 +5,26 @@ import 'package:geolocator/geolocator.dart';
 class LocationState {
   final double? lat;
   final double? lng;
-  final bool    isLoading;
+  final bool isLoading;
   final String? error;
 
-  const LocationState({
-    this.lat,
-    this.lng,
-    this.isLoading = false,
-    this.error,
-  });
+  const LocationState({this.lat, this.lng, this.isLoading = false, this.error});
 
-  bool   get hasLocation => lat != null && lng != null;
-  double get safeLat     => lat ?? 36.8796; // Skikda fallback
-  double get safeLng     => lng ?? 6.9063;
+  bool get hasLocation => lat != null && lng != null;
+  double get safeLat => lat ?? 35.193279; // Sidi Bel Abbes fallback
+  double get safeLng => lng ?? -0.630094;
 
   LocationState copyWith({
     double? lat,
     double? lng,
-    bool?   isLoading,
+    bool? isLoading,
     String? error,
   }) {
     return LocationState(
-      lat:       lat       ?? this.lat,
-      lng:       lng       ?? this.lng,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
       isLoading: isLoading ?? this.isLoading,
-      error:     error,
+      error: error,
     );
   }
 }
@@ -57,8 +52,10 @@ class LocationNotifier extends StateNotifier<LocationState> {
       debugPrint('✅ LocationProvider: ${pos.latitude}, ${pos.longitude}');
       state = state.copyWith(
         isLoading: false,
-        lat: pos.latitude,
-        lng: pos.longitude,
+        lat:
+            35.193279, // Hardcoded for Sidi Bel Abbes testing (was pos.latitude)
+        lng:
+            -0.630094, // Hardcoded for Sidi Bel Abbes testing (was pos.longitude)
       );
     } catch (e) {
       debugPrint('❌ LocationProvider: $e — using fallback');
@@ -73,7 +70,8 @@ class LocationNotifier extends StateNotifier<LocationState> {
   }
 }
 
-final locationProvider =
-    StateNotifierProvider<LocationNotifier, LocationState>((ref) {
-  return LocationNotifier();
-});
+final locationProvider = StateNotifierProvider<LocationNotifier, LocationState>(
+  (ref) {
+    return LocationNotifier();
+  },
+);

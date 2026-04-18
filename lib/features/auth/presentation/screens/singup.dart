@@ -6,6 +6,7 @@ import 'package:ne3ma/core/constants/app_colors.dart';
 import 'package:ne3ma/core/widgets/gasp_button.dart';
 import 'package:ne3ma/core/widgets/gasp_text_field.dart';
 import 'package:ne3ma/features/auth/providers/auth_provider.dart';
+import 'package:ne3ma/l10n/generated/app_localizations.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -15,49 +16,49 @@ class SignUpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
-  final _formKey            = GlobalKey<FormState>();
-  final _nameController     = TextEditingController();
-  final _emailController    = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
   // ── Validation ─────────────────────────────────
-  String? _validateName(String? value) {
+  String? _validateName(String? value, AppLocalizations loc) {
     if (value == null || value.trim().isEmpty) {
-      return 'Name is required';
+      return loc.nameRequired;
     }
     if (value.trim().length < 3) {
-      return 'Name must be at least 3 characters';
+      return loc.nameMin;
     }
     return null;
   }
 
-  String? _validateEmail(String? value) {
+  String? _validateEmail(String? value, AppLocalizations loc) {
     if (value == null || value.trim().isEmpty) {
-      return 'Email is required';
+      return loc.emailRequired;
     }
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value.trim())) {
-      return 'Enter a valid email address';
+      return loc.emailInvalid;
     }
     return null;
   }
 
-  String? _validatePassword(String? value) {
+  String? _validatePassword(String? value, AppLocalizations loc) {
     if (value == null || value.isEmpty) {
-      return 'Password is required';
+      return loc.passwordRequired;
     }
     if (value.length < 8) {
-      return 'Minimum 8 characters';
+      return loc.passwordMin;
     }
     if (!value.contains(RegExp(r'[A-Z]'))) {
-      return 'Must contain at least one uppercase letter (A-Z)';
+      return loc.passwordUpper;
     }
     if (!value.contains(RegExp(r'[0-9]'))) {
-      return 'Must contain at least one number (0-9)';
+      return loc.passwordNumber;
     }
     if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
-      return 'Must contain at least one special character (!@#\$%...)';
+      return loc.passwordSpecial;
     }
     return null;
   }
@@ -71,31 +72,36 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     setState(() => _isLoading = true);
     debugPrint('📤 SignUp: Starting registration...');
-    debugPrint('📝 SignUp: Name = ${_nameController.text}, Email = ${_emailController.text}');
-
-    final success = await ref.read(authProvider.notifier).register(
-      fullName: _nameController.text.trim(),
-      email:    _emailController.text.trim(),
-      password: _passwordController.text,
+    debugPrint(
+      '📝 SignUp: Name = ${_nameController.text}, Email = ${_emailController.text}',
     );
+
+    final success = await ref
+        .read(authProvider.notifier)
+        .register(
+          fullName: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (success) {
-  debugPrint('✅ SignUp: Registration successful! Sending to verify...');
+      debugPrint('✅ SignUp: Registration successful! Sending to verify...');
 
-  // ── Save email for verify-code screen ──────────
-  ref.read(otpEmailProvider.notifier).state = _emailController.text.trim();
-  ref.read(otpTypeProvider.notifier).state  = 'email';
+      // ── Save email for verify-code screen ──────────
+      ref.read(otpEmailProvider.notifier).state = _emailController.text.trim();
+      ref.read(otpTypeProvider.notifier).state = 'email';
 
- context.go('/verify-code', extra: '/lastintro');// ← was '/lastintro'
-} else {
+      context.go('/verify-code', extra: '/lastintro'); // ← was '/lastintro'
+    } else {
       final error = ref.read(authProvider).error;
       debugPrint('❌ SignUp Error: $error');
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error ?? 'Sign up failed'),
+          content: Text(error ?? loc.signUpFailed),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -116,6 +122,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       body: Container(
         margin: const EdgeInsets.all(24.0),
@@ -126,42 +133,44 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               // ── Back Button ────────────────────
-IconButton(
-  onPressed: () {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/login');
-    }
-  },
-  icon: const Icon(Icons.arrow_back_ios_new_outlined),
-),
+              IconButton(
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/login');
+                  }
+                },
+                icon: const Icon(Icons.arrow_back_ios_new_outlined),
+              ),
               const SizedBox(height: 16),
 
-              const Text(
-                'Sign Up',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Text(
+                loc.signUp,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 32),
 
-              const Text(
-                'Create account and choose whatever',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+              Text(
+                loc.createAccountDesc,
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 32),
 
               // ── Name ───────────────────────────
               GaspTextField(
                 controller: _nameController,
-                label: 'Name',
-                hint: 'Your name',
+                label: loc.name,
+                hint: loc.nameHint,
                 borderColor: const Color(0xFFF2F2F2),
                 borderRadius: BorderRadius.circular(25),
                 backgroundColor: const Color(0xFFF2F2F2),
                 textColor: Colors.grey,
-                validator: _validateName,
+                validator: (val) => _validateName(val, loc),
                 onChanged: (_) {},
               ),
               const SizedBox(height: 16),
@@ -169,13 +178,14 @@ IconButton(
               // ── Email ──────────────────────────
               GaspTextField(
                 controller: _emailController,
-                label: 'Email',
-                hint: 'Your email',
+                label: loc.email,
+                hint: loc.emailHint,
+                textDirection: TextDirection.ltr,
                 borderColor: const Color(0xFFF2F2F2),
                 borderRadius: BorderRadius.circular(25),
                 backgroundColor: const Color(0xFFF2F2F2),
                 textColor: Colors.grey,
-                validator: _validateEmail,
+                validator: (val) => _validateEmail(val, loc),
                 onChanged: (_) {},
               ),
               const SizedBox(height: 16),
@@ -183,24 +193,25 @@ IconButton(
               // ── Password ───────────────────────
               GaspTextField(
                 controller: _passwordController,
-                label: 'Password',
-                hint: 'Your password',
+                label: loc.password,
+                hint: loc.passwordHint,
+                textDirection: TextDirection.ltr,
                 borderColor: const Color(0xFFF2F2F2),
                 borderRadius: BorderRadius.circular(25),
                 backgroundColor: const Color(0xFFF2F2F2),
                 textColor: Colors.grey,
                 isPassword: true,
-                validator: _validatePassword,
+                validator: (val) => _validatePassword(val, loc),
                 onChanged: (_) {},
               ),
 
               // ── Password Rules Hint ────────────
               const SizedBox(height: 8),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
-                  '• Min 8 characters  • One uppercase  • One number  • One special char',
-                  style: TextStyle(
+                  loc.passwordRules,
+                  style: const TextStyle(
                     fontSize: 11,
                     color: Colors.grey,
                     height: 1.4,
@@ -212,7 +223,7 @@ IconButton(
 
               // ── Register Button ────────────────
               GaspButton(
-                label: _isLoading ? 'Registering...' : 'Register',
+                label: _isLoading ? loc.registering : loc.register,
                 onPressed: _isLoading ? null : _handleSignUp,
                 height: 60,
                 borderRadius: 30,
@@ -226,16 +237,16 @@ IconButton(
                 child: RichText(
                   text: TextSpan(
                     children: [
-                      const TextSpan(
-                        text: 'Have an account? ',
-                        style: TextStyle(
+                      TextSpan(
+                        text: loc.haveAccount,
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.grey,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
                       TextSpan(
-                        text: 'Sign In',
+                        text: loc.signIn,
                         style: const TextStyle(
                           fontSize: 14,
                           color: AppColors.primary,
@@ -252,19 +263,19 @@ IconButton(
               const Spacer(),
 
               // ── Terms ──────────────────────────
-              const Text(
-                'By clicking register, you agree to our Terms and Conditions',
+              Text(
+                loc.agreeTerms,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 8),
               Center(
                 child: GestureDetector(
                   onTap: () {},
-                  child: const Text(
-                    'Privacy Policy',
+                  child: Text(
+                    loc.privacyPolicy,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,

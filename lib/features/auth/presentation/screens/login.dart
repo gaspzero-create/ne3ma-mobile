@@ -6,6 +6,7 @@ import 'package:ne3ma/core/constants/app_colors.dart';
 import 'package:ne3ma/core/widgets/gasp_button.dart';
 import 'package:ne3ma/core/widgets/gasp_text_field.dart';
 import 'package:ne3ma/features/auth/providers/auth_provider.dart';
+import 'package:ne3ma/l10n/generated/app_localizations.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -15,38 +16,38 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey          = GlobalKey<FormState>();
-  final _emailController    = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
   // ── Validation ─────────────────────────────────
-  String? _validateEmail(String? value) {
+  String? _validateEmail(String? value, AppLocalizations loc) {
     if (value == null || value.trim().isEmpty) {
-      return 'Email is required';
+      return loc.emailRequired;
     }
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value.trim())) {
-      return 'Enter a valid email address';
+      return loc.emailInvalid;
     }
     return null;
   }
 
-  String? _validatePassword(String? value) {
+  String? _validatePassword(String? value, AppLocalizations loc) {
     if (value == null || value.isEmpty) {
-      return 'Password is required';
+      return loc.passwordRequired;
     }
     if (value.length < 8) {
-      return 'Minimum 8 characters';
+      return loc.passwordMin;
     }
     if (!value.contains(RegExp(r'[A-Z]'))) {
-      return 'Must contain at least one uppercase letter';
+      return loc.passwordUpper;
     }
     if (!value.contains(RegExp(r'[0-9]'))) {
-      return 'Must contain at least one number';
+      return loc.passwordNumber;
     }
     if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
-      return 'Must contain at least one special character (!@#\$%...)';
+      return loc.passwordSpecial;
     }
     return null;
   }
@@ -62,10 +63,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     debugPrint('📤 Login: Starting login...');
     debugPrint('📝 Login: Email = ${_emailController.text.trim()}');
 
-    final success = await ref.read(authProvider.notifier).login(
-      email:    _emailController.text.trim(),
-      password: _passwordController.text,
-    );
+    final success = await ref
+        .read(authProvider.notifier)
+        .login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -76,9 +79,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } else {
       final error = ref.read(authProvider).error;
       debugPrint('❌ Login Error: $error');
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error ?? 'Login failed'),
+          content: Text(error ?? loc.loginFailed),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -98,6 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       body: Container(
         margin: const EdgeInsets.only(top: 50, left: 24.0, right: 24.0),
@@ -107,28 +112,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
-              const Text(
-                'Welcome Back!',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              Text(
+                loc.welcomeBack,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 32),
-              const Text(
-                'Enter your email and password to log in',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+              Text(
+                loc.enterEmailPassword,
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 32),
 
               // ── Email ──────────────────────────
               GaspTextField(
                 controller: _emailController,
-                label: 'Email',
-                hint: 'Your email',
+                label: loc.email,
+                hint: loc.emailHint,
+                textDirection: TextDirection.ltr,
                 borderColor: const Color(0xFFF2F2F2),
                 borderRadius: BorderRadius.circular(25),
                 backgroundColor: const Color(0xFFF2F2F2),
                 textColor: Colors.grey,
-                validator: _validateEmail,
+                validator: (val) => _validateEmail(val, loc),
                 onChanged: (_) {},
               ),
               const SizedBox(height: 16),
@@ -136,14 +144,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               // ── Password ───────────────────────
               GaspTextField(
                 controller: _passwordController,
-                label: 'Password',
-                hint: 'Your password',
+                label: loc.password,
+                hint: loc.passwordHint,
+                textDirection: TextDirection.ltr,
                 borderColor: const Color(0xFFF2F2F2),
                 borderRadius: BorderRadius.circular(25),
                 backgroundColor: const Color(0xFFF2F2F2),
                 textColor: Colors.grey,
                 isPassword: true,
-                validator: _validatePassword,
+                validator: (val) => _validatePassword(val, loc),
                 onChanged: (_) {},
               ),
               const SizedBox(height: 12),
@@ -153,9 +162,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
                   onTap: () => context.go('/forgot-password'),
-                  child: const Text(
-                    'Forgot Password?',
-                    style: TextStyle(
+                  child: Text(
+                    loc.forgotPassword,
+                    style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.primaryMid,
                       fontWeight: FontWeight.w600,
@@ -167,7 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               // ── Login Button ───────────────────
               GaspButton(
-                label: _isLoading ? 'Logging in...' : 'Login',
+                label: _isLoading ? loc.loggingIn : loc.login,
                 onPressed: _isLoading ? null : _handleLogin,
                 height: 60,
                 borderRadius: 30,
@@ -177,28 +186,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 24),
 
               // ── OR Divider ─────────────────────
-              const Row(
+              Row(
                 children: [
-                  Expanded(child: Divider(color: Colors.grey, thickness: 1)),
+                  const Expanded(
+                    child: Divider(color: Colors.grey, thickness: 1),
+                  ),
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Text(
-                      'OR',
-                      style: TextStyle(
+                      loc.or,
+                      style: const TextStyle(
                         fontSize: 14,
                         color: Colors.grey,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  Expanded(child: Divider(color: Colors.grey, thickness: 1)),
+                  const Expanded(
+                    child: Divider(color: Colors.grey, thickness: 1),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
 
               // ── Google Button ──────────────────
               GaspButton(
-                label: 'Continue with Google',
+                label: loc.continueWithGoogle,
                 onPressed: () {
                   // TODO: Google OAuth
                 },
@@ -216,18 +229,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: GestureDetector(
                   onTap: () => context.go('/signup'),
                   child: RichText(
-                    text: const TextSpan(
+                    text: TextSpan(
                       children: [
                         TextSpan(
-                          text: "Don't have an account? ",
-                          style: TextStyle(
+                          text: loc.dontHaveAccount,
+                          style: const TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
                           ),
                         ),
                         TextSpan(
-                          text: 'Sign Up',
-                          style: TextStyle(
+                          text: loc.signUp,
+                          style: const TextStyle(
                             fontSize: 14,
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,

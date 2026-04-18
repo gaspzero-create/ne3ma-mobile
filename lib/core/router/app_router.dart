@@ -19,74 +19,64 @@ import 'package:ne3ma/features/home/presentation/screens/home_tab.dart';
 import 'package:ne3ma/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/settings_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/profile_screens.dart';
+import 'package:ne3ma/features/profile/presentation/screens/privacy_policy_screen.dart';
+import 'package:ne3ma/features/profile/presentation/screens/terms_and_conditions_screen.dart';
+import 'package:ne3ma/features/profile/presentation/screens/help_and_support_screen.dart';
 
 class AppRouter {
   AppRouter._();
 
-  static const String splash         = '/';
-  static const String intro          = '/intro';
-  static const String signup         = '/signup';
-  static const String signin         = '/signin';
+  static const String splash = '/';
+  static const String intro = '/intro';
+  static const String signup = '/signup';
+  static const String signin = '/signin';
   static const String forgotPassword = '/forgot-password';
-  static const String verifyCode     = '/verify-code';
-  static const String lastintro      = '/lastintro';
-  static const String login          = '/login';
-  static const String settings       = '/settings';
-  static const String profile        = '/profile';
-  static const String home           = '/home';
-  static const String notifications  = '/notifications';
+  static const String verifyCode = '/verify-code';
+  static const String lastintro = '/lastintro';
+  static const String login = '/login';
+  static const String settings = '/settings';
+  static const String profile = '/profile';
+  static const String home = '/home';
+  static const String notifications = '/notifications';
 
   static final router = GoRouter(
     initialLocation: splash,
     routes: [
-
       // ── Splash — fade transition ───────────────
       GoRoute(
         path: splash,
-        pageBuilder: (context, state) => _fadePage(
-          state: state,
-          child: const SplashScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _fadePage(state: state, child: const SplashScreen()),
       ),
 
       GoRoute(
         path: intro,
-        pageBuilder: (context, state) => _slideRightPage(
-          state: state,
-          child: const IntroScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const IntroScreen()),
       ),
 
       GoRoute(
         path: lastintro,
-        pageBuilder: (context, state) => _slideRightPage(
-          state: state,
-          child: const Lastintro(),
-        ),
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const Lastintro()),
       ),
 
       GoRoute(
         path: login,
-        pageBuilder: (context, state) => _loginPage(
-          state: state,
-          child: const LoginScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _loginPage(state: state, child: const LoginScreen()),
       ),
 
       GoRoute(
         path: signup,
-        pageBuilder: (context, state) => _slideRightPage(
-          state: state,
-          child: const SignUpScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const SignUpScreen()),
       ),
 
       GoRoute(
         path: forgotPassword,
-        pageBuilder: (context, state) => _slideRightPage(
-          state: state,
-          child: const ForgotPasswordScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const ForgotPasswordScreen()),
       ),
 
       GoRoute(
@@ -102,26 +92,40 @@ class AppRouter {
 
       GoRoute(
         path: settings,
-        pageBuilder: (context, state) => _slideUpPage(
-          state: state,
-          child: const SettingsScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _slideUpPage(state: state, child: const SettingsScreen()),
       ),
 
       GoRoute(
         path: profile,
-        pageBuilder: (context, state) => _slideRightPage(
-          state: state,
-          child: const EditProfileScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const EditProfileScreen()),
       ),
 
       GoRoute(
         path: notifications,
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const NotificationsScreen()),
+      ),
+
+      GoRoute(
+        path: '/privacy-policy',
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const PrivacyPolicyScreen()),
+      ),
+
+      GoRoute(
+        path: '/terms-and-conditions',
         pageBuilder: (context, state) => _slideRightPage(
           state: state,
-          child: const NotificationsScreen(),
+          child: const TermsAndConditionsScreen(),
         ),
+      ),
+
+      GoRoute(
+        path: '/help-support',
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const HelpAndSupportScreen()),
       ),
 
       ShellRoute(
@@ -129,38 +133,28 @@ class AppRouter {
         routes: [
           GoRoute(
             path: '/home',
-            pageBuilder: (context, state) => _fadePage(
-              state: state,
-              child: const HomeTab(),
-            ),
+            pageBuilder: (context, state) =>
+                _fadePage(state: state, child: const HomeTab()),
           ),
           GoRoute(
             path: '/messages',
-            pageBuilder: (context, state) => _fadePage(
-              state: state,
-              child: const MessagesTab(),
-            ),
+            pageBuilder: (context, state) =>
+                _fadePage(state: state, child: const MessagesTab()),
           ),
           GoRoute(
             path: '/add',
-            pageBuilder: (context, state) => _slideRightPage(
-              state: state,
-              child: const AddDonationScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                _slideRightPage(state: state, child: const AddDonationScreen()),
           ),
           GoRoute(
             path: '/special',
-            pageBuilder: (context, state) => _fadePage(
-              state: state,
-              child: const SpecialTab(),
-            ),
+            pageBuilder: (context, state) =>
+                _fadePage(state: state, child: const SpecialTab()),
           ),
           GoRoute(
             path: '/profile-tab',
-            pageBuilder: (context, state) => _fadePage(
-              state: state,
-              child: const SettingsScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                _fadePage(state: state, child: const SettingsScreen()),
           ),
         ],
       ),
@@ -176,41 +170,41 @@ class AppRouter {
         },
       ),
 
-//       ShellRoute(
-//   builder: (context, state, child) {
-//     return HomeScreen(child: child);
-//   },
-//   routes: [
-//     GoRoute(
-//       path: '/home',
-//       pageBuilder: (context, state) => _fadePage(
-//         state: state,
-//         child: const HomeTab(),
-//       ),
-//     ),
-//     GoRoute(
-//       path: '/messages',
-//       pageBuilder: (context, state) => _fadePage(
-//         state: state,
-//         child: const MessagesTab(),
-//       ),
-//     ),
-//     GoRoute(
-//       path: '/special',
-//       pageBuilder: (context, state) => _fadePage(
-//         state: state,
-//         child: const SpecialTab(),
-//       ),
-//     ),
-//     GoRoute(
-//       path: '/profile-tab',
-//       pageBuilder: (context, state) => _fadePage(
-//         state: state,
-//         child: const ProfileTab(),
-//       ),
-//     ),
-//   ],
-// ),
+      //       ShellRoute(
+      //   builder: (context, state, child) {
+      //     return HomeScreen(child: child);
+      //   },
+      //   routes: [
+      //     GoRoute(
+      //       path: '/home',
+      //       pageBuilder: (context, state) => _fadePage(
+      //         state: state,
+      //         child: const HomeTab(),
+      //       ),
+      //     ),
+      //     GoRoute(
+      //       path: '/messages',
+      //       pageBuilder: (context, state) => _fadePage(
+      //         state: state,
+      //         child: const MessagesTab(),
+      //       ),
+      //     ),
+      //     GoRoute(
+      //       path: '/special',
+      //       pageBuilder: (context, state) => _fadePage(
+      //         state: state,
+      //         child: const SpecialTab(),
+      //       ),
+      //     ),
+      //     GoRoute(
+      //       path: '/profile-tab',
+      //       pageBuilder: (context, state) => _fadePage(
+      //         state: state,
+      //         child: const ProfileTab(),
+      //       ),
+      //     ),
+      //   ],
+      // ),
     ],
   );
 
@@ -226,10 +220,7 @@ class AppRouter {
       reverseTransitionDuration: const Duration(milliseconds: 300),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
-          opacity: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeInOut,
-          ),
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
           child: child,
         );
       },
@@ -268,10 +259,7 @@ class AppRouter {
               end: Offset.zero,
             ).animate(slide),
             child: ScaleTransition(
-              scale: Tween<double>(
-                begin: 0.985,
-                end: 1.0,
-              ).animate(scale),
+              scale: Tween<double>(begin: 0.985, end: 1.0).animate(scale),
               child: child,
             ),
           ),
@@ -300,10 +288,7 @@ class AppRouter {
             begin: const Offset(1.0, 0.0), // ← comes from right
             end: Offset.zero,
           ).animate(curved),
-          child: FadeTransition(
-            opacity: curved,
-            child: child,
-          ),
+          child: FadeTransition(opacity: curved, child: child),
         );
       },
     );
@@ -329,53 +314,48 @@ class AppRouter {
             begin: const Offset(0.0, 1.0), // ← comes from bottom
             end: Offset.zero,
           ).animate(curved),
-          child: FadeTransition(
-            opacity: curved,
-            child: child,
-          ),
+          child: FadeTransition(opacity: curved, child: child),
         );
       },
     );
   }
-  
 
-static GoRouter routerWithRef(WidgetRef ref) => GoRouter(
-  initialLocation: splash,
-  // ── Auth redirect ──────────────────────────
-  redirect: (context, state) {
-    final authState = ref.read(authProvider);
-    final isAuth    = authState.isAuthenticated;
-    final isLoading = authState.isLoading;
+  static GoRouter routerWithRef(WidgetRef ref) => GoRouter(
+    initialLocation: splash,
+    // ── Auth redirect ──────────────────────────
+    redirect: (context, state) {
+      final authState = ref.read(authProvider);
+      final isAuth = authState.isAuthenticated;
+      final isLoading = authState.isLoading;
 
-    // Still checking auth → stay on splash
-    if (isLoading) return splash;
+      // Still checking auth → stay on splash
+      if (isLoading) return splash;
 
-    final protectedRoutes = [
-      '/home',
-      '/messages',
-      '/add',
-      '/settings',
-      '/profile',
-      '/profile-tab',
-      '/special',
-    ];
-    final isGoingToProtected = protectedRoutes.any(
-      (r) => state.matchedLocation.startsWith(r),
-    );
+      final protectedRoutes = [
+        '/home',
+        '/messages',
+        '/add',
+        '/settings',
+        '/profile',
+        '/profile-tab',
+        '/special',
+      ];
+      final isGoingToProtected = protectedRoutes.any(
+        (r) => state.matchedLocation.startsWith(r),
+      );
 
-    // Not auth + going to protected → go to login
-    if (!isAuth && isGoingToProtected) return login;
+      // Not auth + going to protected → go to login
+      if (!isAuth && isGoingToProtected) return login;
 
-    // Auth + going to auth screens → go to home
-    final authRoutes = ['/login', '/signup', '/intro'];
-    final isGoingToAuth = authRoutes.any(
-      (r) => state.matchedLocation.startsWith(r),
-    );
-    if (isAuth && isGoingToAuth) return home;
+      // Auth + going to auth screens → go to home
+      final authRoutes = ['/login', '/signup', '/intro'];
+      final isGoingToAuth = authRoutes.any(
+        (r) => state.matchedLocation.startsWith(r),
+      );
+      if (isAuth && isGoingToAuth) return home;
 
-    return null; // no redirect
-  },
-  routes: router.configuration.routes,
-);
-
+      return null; // no redirect
+    },
+    routes: router.configuration.routes,
+  );
 }

@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:ne3ma/core/constants/app_colors.dart';
 import 'package:ne3ma/core/providers/location_provider.dart';
 import 'package:ne3ma/core/services/image_upload_service.dart';
+import 'package:ne3ma/features/donations/data/models/donation_model.dart';
 import 'package:ne3ma/features/donations/data/models/category_model.dart';
 import 'package:ne3ma/features/donations/presentation/widgets/location_picker_widget.dart';
 import 'package:ne3ma/features/donations/providers/add_donation_form_provider.dart';
@@ -30,7 +31,12 @@ const _kMapBg = Color(0xFFDFDFD8);
 const _pickupTypes = ['DROP', 'PICKUP'];
 
 class AddDonationScreen extends ConsumerStatefulWidget {
-  const AddDonationScreen({super.key});
+  const AddDonationScreen({
+    super.key,
+    this.initialDonation,
+  });
+
+  final DonationModel? initialDonation;
 
   @override
   ConsumerState<AddDonationScreen> createState() => _AddDonationScreenState();
@@ -39,6 +45,7 @@ class AddDonationScreen extends ConsumerStatefulWidget {
 class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
   XFile? _imageFile;
   String? _imageBase64;
+  String? _existingImageUrl;
   bool _isUploadingImage = false;
   bool _checklistConfirmed = true;
   String? _category;
@@ -55,6 +62,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
   final _quantityCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
 
+  bool get _isEditMode => widget.initialDonation != null;
+  DonationModel? get _initialDonation => widget.initialDonation;
+
   Uint8List? get _savedImageBytes {
     final base64 = _imageBase64;
     if (base64 == null || base64.isEmpty) return null;
@@ -70,33 +80,47 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
   void initState() {
     super.initState();
 
-    final saved = ref.read(addDonationFormProvider);
     final location = ref.read(locationProvider);
+    final initialDonation = _initialDonation;
 
-    _nameCtrl.text = saved.title;
-    _quantityCtrl.text = saved.quantity;
-    _descCtrl.text = saved.description;
-    _category = saved.category.isEmpty ? null : saved.category;
-    _pickupType = saved.pickupType;
-    _expiryDate = saved.expiresAt.isEmpty
-        ? null
-        : DateTime.tryParse(saved.expiresAt);
-    _imageBase64 = saved.imageBase64;
-    _checklistConfirmed = saved.checklistConfirmed;
-    _selectedLat = location.safeLat;
-    _selectedLng = location.safeLng;
+    if (_isEditMode && initialDonation != null) {
+      _nameCtrl.text = initialDonation.title;
+      _quantityCtrl.text = initialDonation.quantity;
+      _descCtrl.text = initialDonation.description ?? '';
+      _category = initialDonation.categoryId;
+      _pickupType = initialDonation.pickupType;
+      _expiryDate = DateTime.tryParse(initialDonation.expiresAt)?.toLocal();
+      _checklistConfirmed = initialDonation.checklistConfirmed ?? true;
+      _selectedLat = initialDonation.lat ?? location.safeLat;
+      _selectedLng = initialDonation.lng ?? location.safeLng;
+      _existingImageUrl = initialDonation.imageUrl;
+    } else {
+      final saved = ref.read(addDonationFormProvider);
+      _nameCtrl.text = saved.title;
+      _quantityCtrl.text = saved.quantity;
+      _descCtrl.text = saved.description;
+      _category = saved.category.isEmpty ? null : saved.category;
+      _pickupType = saved.pickupType;
+      _expiryDate = saved.expiresAt.isEmpty
+          ? null
+          : DateTime.tryParse(saved.expiresAt);
+      _imageBase64 = saved.imageBase64;
+      _checklistConfirmed = saved.checklistConfirmed;
+      _selectedLat = location.safeLat;
+      _selectedLng = location.safeLng;
 
-    _nameCtrl.addListener(() {
-      ref.read(addDonationFormProvider.notifier).setTitle(_nameCtrl.text);
-    });
-    _quantityCtrl.addListener(() {
-      ref
-          .read(addDonationFormProvider.notifier)
-          .setQuantity(_quantityCtrl.text);
-    });
-    _descCtrl.addListener(() {
-      ref.read(addDonationFormProvider.notifier).setDescription(_descCtrl.text);
-    });
+      _nameCtrl.addListener(() {
+        ref.read(addDonationFormProvider.notifier).setTitle(_nameCtrl.text);
+      });
+      _quantityCtrl.addListener(() {
+        ref
+            .read(addDonationFormProvider.notifier)
+            .setQuantity(_quantityCtrl.text);
+      });
+      _descCtrl.addListener(() {
+        ref.read(addDonationFormProvider.notifier).setDescription(_descCtrl.text);
+      });
+    }
   }
 
   @override
@@ -213,7 +237,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
   }
 
   String? _validateForm() {
-    if (_imageBase64 == null) return 'Please add a picture.';
+    if (_imageBase64 == null && (_existingImageUrl == null || _existingImageUrl!.isEmpty)) {
+      return 'Please add a picture.';
+    }
     if (_nameCtrl.text.trim().isEmpty) return 'Please enter a name.';
     if (_category == null) return 'Please select a category.';
     if (_quantityCtrl.text.trim().isEmpty) return 'Please enter a quantity.';
@@ -222,6 +248,8 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
   }
 
   void _restoreSavedCategory(List<CategoryModel> categories) {
+    if (_isEditMode) return;
+
     final selectedCategory = _category;
     if (selectedCategory == null || selectedCategory.isEmpty) return;
 
@@ -243,13 +271,14 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
     }
 
     if (resolvedCategory == null) return;
+    final matchedCategory = resolvedCategory;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _category == resolvedCategory!.id) return;
-      setState(() => _category = resolvedCategory!.id);
+      if (!mounted || _category == matchedCategory.id) return;
+      setState(() => _category = matchedCategory.id);
       ref
           .read(addDonationFormProvider.notifier)
-          .setCategory(resolvedCategory!.id);
+          .setCategory(matchedCategory.id);
     });
   }
 
@@ -276,29 +305,44 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
     final location = ref.read(locationProvider);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Creating donation...'),
+      SnackBar(
+        content: Text(_isEditMode ? 'Updating donation...' : 'Creating donation...'),
         behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 30),
+        duration: const Duration(seconds: 30),
       ),
     );
 
-    final success = await ref
-        .read(donationsProvider.notifier)
-        .createDonation(
-          title: _nameCtrl.text.trim(),
-          categoryId: _category!,
-          pickupType: _pickupType,
-          quantity: _quantityCtrl.text.trim(),
-          expiresAt: expiresAt,
-          description: _descCtrl.text.trim().isEmpty
-              ? null
-              : _descCtrl.text.trim(),
-          imageBase64: _imageBase64,
-          lat: _selectedLat ?? location.safeLat,
-          lng: _selectedLng ?? location.safeLng,
-          checklistConfirmed: _checklistConfirmed,
-        );
+    final notifier = ref.read(donationsProvider.notifier);
+    final success = _isEditMode
+        ? await notifier.updateDonation(
+            id: _initialDonation!.id,
+            title: _nameCtrl.text.trim(),
+            categoryId: _category!,
+            pickupType: _pickupType,
+            quantity: _quantityCtrl.text.trim(),
+            expiresAt: expiresAt,
+            description: _descCtrl.text.trim().isEmpty
+                ? null
+                : _descCtrl.text.trim(),
+            imageBase64: _imageBase64,
+            lat: _selectedLat ?? location.safeLat,
+            lng: _selectedLng ?? location.safeLng,
+            checklistConfirmed: _checklistConfirmed,
+          )
+        : await notifier.createDonation(
+            title: _nameCtrl.text.trim(),
+            categoryId: _category!,
+            pickupType: _pickupType,
+            quantity: _quantityCtrl.text.trim(),
+            expiresAt: expiresAt,
+            description: _descCtrl.text.trim().isEmpty
+                ? null
+                : _descCtrl.text.trim(),
+            imageBase64: _imageBase64,
+            lat: _selectedLat ?? location.safeLat,
+            lng: _selectedLng ?? location.safeLng,
+            checklistConfirmed: _checklistConfirmed,
+          );
 
     if (!mounted) return;
 
@@ -306,13 +350,20 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Donation published successfully! 🎉'),
+        SnackBar(
+          content: Text(
+            _isEditMode
+                ? '✅ Donation updated successfully!'
+                : '✅ Donation published successfully! 🎉',
+          ),
           backgroundColor: _kGreen,
           behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
+      if (!_isEditMode) {
+        ref.read(addDonationFormProvider.notifier).reset();
+      }
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) Navigator.maybePop(context);
       });
@@ -321,7 +372,7 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '❌ Error: ${state.error ?? "Failed to create donation"}',
+            '❌ Error: ${state.error ?? (_isEditMode ? "Failed to update donation" : "Failed to create donation")}',
           ),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
@@ -355,9 +406,9 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
           ),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
-          'Add a post',
-          style: TextStyle(
+        title: Text(
+          _isEditMode ? 'Update donation' : 'Add a post',
+          style: const TextStyle(
             color: _kTextDark,
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -376,13 +427,17 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
                   _ImagePickerCard(
                     imageFile: _imageFile,
                     imageBytes: _savedImageBytes,
+                    imageUrl: _existingImageUrl,
                     onTap: _showImageSourceSheet,
                     onRemove: () => setState(() {
                       _imageFile = null;
                       _imageBase64 = null;
-                      ref
-                          .read(addDonationFormProvider.notifier)
-                          .setImageBase64(null);
+                      _existingImageUrl = null;
+                      if (!_isEditMode) {
+                        ref
+                            .read(addDonationFormProvider.notifier)
+                            .setImageBase64(null);
+                      }
                     }),
                   ),
                   const SizedBox(height: 24),
@@ -489,6 +544,7 @@ class _AddDonationScreenState extends ConsumerState<AddDonationScreen> {
               bottom: 0,
               child: _PublishBar(
                 isLoading: state.isLoading,
+                label: _isEditMode ? 'Update' : 'Publish',
                 onPublish: _publish,
               ),
             ),
@@ -519,7 +575,6 @@ class _AppTextField extends StatelessWidget {
   final FocusNode focusNode;
   final String hint;
   final FocusNode? nextFocus;
-  final TextInputType keyboardType;
   final int maxLines;
 
   const _AppTextField({
@@ -527,7 +582,6 @@ class _AppTextField extends StatelessWidget {
     required this.focusNode,
     required this.hint,
     this.nextFocus,
-    this.keyboardType = TextInputType.text,
     this.maxLines = 1,
   });
 
@@ -536,7 +590,7 @@ class _AppTextField extends StatelessWidget {
     return TextFormField(
       controller: controller,
       focusNode: focusNode,
-      keyboardType: keyboardType,
+      keyboardType: TextInputType.text,
       maxLines: maxLines,
       textInputAction: nextFocus != null
           ? TextInputAction.next
@@ -719,12 +773,14 @@ class _DateField extends StatelessWidget {
 class _ImagePickerCard extends StatelessWidget {
   final XFile? imageFile;
   final Uint8List? imageBytes;
+  final String? imageUrl;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
   const _ImagePickerCard({
     required this.imageFile,
     required this.imageBytes,
+    this.imageUrl,
     required this.onTap,
     required this.onRemove,
   });
@@ -741,7 +797,7 @@ class _ImagePickerCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: _kGreen, width: 1.5),
         ),
-        child: imageFile != null || imageBytes != null
+        child: imageFile != null || imageBytes != null || (imageUrl != null && imageUrl!.isNotEmpty)
             ? Stack(
                 fit: StackFit.expand,
                 children: [
@@ -749,10 +805,16 @@ class _ImagePickerCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(15),
                     child: imageFile != null
                         ? Image.file(File(imageFile!.path), fit: BoxFit.cover)
-                        : Image.memory(
+                        : imageBytes != null
+                        ? Image.memory(
                             imageBytes!,
                             fit: BoxFit.cover,
                             gaplessPlayback: true,
+                          )
+                        : Image.network(
+                            imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => _placeholder(),
                           ),
                   ),
                   Positioned(
@@ -856,9 +918,14 @@ class _MapVisualizationCard extends StatelessWidget {
 
 class _PublishBar extends StatelessWidget {
   final bool isLoading;
+  final String label;
   final VoidCallback onPublish;
 
-  const _PublishBar({required this.isLoading, required this.onPublish});
+  const _PublishBar({
+    required this.isLoading,
+    required this.label,
+    required this.onPublish,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -873,7 +940,7 @@ class _PublishBar extends StatelessWidget {
         color: _kBg,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, -4),
           ),
@@ -886,7 +953,7 @@ class _PublishBar extends StatelessWidget {
           onPressed: isLoading ? null : onPublish,
           style: ElevatedButton.styleFrom(
             backgroundColor: _kGreen,
-            disabledBackgroundColor: _kGreen.withOpacity(0.6),
+            disabledBackgroundColor: _kGreen.withValues(alpha: 0.6),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
             ),
@@ -901,8 +968,8 @@ class _PublishBar extends StatelessWidget {
                     strokeWidth: 2.5,
                   ),
                 )
-              : const Text(
-                  'Publish',
+              : Text(
+                  label,
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,

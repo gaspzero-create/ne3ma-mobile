@@ -25,6 +25,7 @@ class GaspTextField extends StatefulWidget {
     this.borderRadius,
     this.textColor,
     this.backgroundColor,
+    this.textDirection,
   });
 
   final String label;
@@ -46,6 +47,7 @@ class GaspTextField extends StatefulWidget {
   final BorderRadius? borderRadius;
   final Color? textColor;
   final Color? backgroundColor;
+  final TextDirection? textDirection;
 
   @override
   State<GaspTextField> createState() => _GaspTextFieldState();
@@ -75,6 +77,7 @@ class _GaspTextFieldState extends State<GaspTextField> {
         TextFormField(
           controller: widget.controller,
           keyboardType: widget.keyboardType,
+          textDirection: widget.textDirection,
           obscureText: widget.isPassword ? _obscureText : false,
           maxLines: widget.isPassword ? 1 : widget.maxLines,
           enabled: widget.enabled,
@@ -118,46 +121,52 @@ class _GaspTextFieldState extends State<GaspTextField> {
                 : widget.suffixIcon,
             // ── Border ──────────────────────────────
             border: OutlineInputBorder(
-              borderRadius: widget.borderRadius ?? BorderRadius.circular(AppSizes.radiusMd),
+              borderRadius:
+                  widget.borderRadius ??
+                  BorderRadius.circular(AppSizes.radiusMd),
               borderSide: BorderSide(
                 color: widget.borderColor ?? AppColors.border,
                 width: 1.5,
               ),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: widget.borderRadius ?? BorderRadius.circular(AppSizes.radiusMd),
+              borderRadius:
+                  widget.borderRadius ??
+                  BorderRadius.circular(AppSizes.radiusMd),
               borderSide: BorderSide(
                 color: widget.borderColor ?? AppColors.border,
                 width: 1.5,
               ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: widget.borderRadius ?? BorderRadius.circular(AppSizes.radiusMd),
+              borderRadius:
+                  widget.borderRadius ??
+                  BorderRadius.circular(AppSizes.radiusMd),
               borderSide: const BorderSide(
                 color: AppColors.primary,
                 width: 2.0,
               ),
             ),
             disabledBorder: OutlineInputBorder(
-              borderRadius: widget.borderRadius ?? BorderRadius.circular(AppSizes.radiusMd),
+              borderRadius:
+                  widget.borderRadius ??
+                  BorderRadius.circular(AppSizes.radiusMd),
               borderSide: BorderSide(
                 color: widget.borderColor ?? AppColors.border,
                 width: 1.5,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: widget.borderRadius ?? BorderRadius.circular(AppSizes.radiusMd),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 1.5,
-              ),
+              borderRadius:
+                  widget.borderRadius ??
+                  BorderRadius.circular(AppSizes.radiusMd),
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: widget.borderRadius ?? BorderRadius.circular(AppSizes.radiusMd),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 2.0,
-              ),
+              borderRadius:
+                  widget.borderRadius ??
+                  BorderRadius.circular(AppSizes.radiusMd),
+              borderSide: const BorderSide(color: Colors.red, width: 2.0),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSizes.md,

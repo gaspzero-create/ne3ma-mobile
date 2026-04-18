@@ -57,8 +57,12 @@ class DonationQueries {
         quantity
         expiresAt
         imageUrl
-        distanceKm
+        lat
+        lng
+        meetingZone
+        checklistConfirmed
         createdAt
+        updatedAt
       }
     }
   ''';

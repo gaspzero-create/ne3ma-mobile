@@ -29,13 +29,15 @@ class MessagesBadgeState {
   }) {
     return MessagesBadgeState(
       hasUnread: hasUnread ?? this.hasUnread,
-      unreadConversationIds: unreadConversationIds ?? this.unreadConversationIds,
+      unreadConversationIds:
+          unreadConversationIds ?? this.unreadConversationIds,
     );
   }
 }
 
 class MessagesBadgeNotifier extends StateNotifier<MessagesBadgeState> {
-  static const _chatBackendUrl = 'https://ne3ma-prod-service-helo.up.railway.app';
+  static const _chatBackendUrl =
+      'https://ne3ma-backend-production-0f70.up.railway.app';
   final Ref _ref;
   final _storage = const FlutterSecureStorage();
   final ChatSocketService _socket = ChatSocketService.detached();
@@ -170,10 +172,7 @@ class MessagesBadgeNotifier extends StateNotifier<MessagesBadgeState> {
       return;
     }
 
-    _socket.connect(
-      baseUrl: _chatBackendUrl,
-      token: token,
-    );
+    _socket.connect(baseUrl: _chatBackendUrl, token: token);
   }
 
   void _joinTrackedRooms() {

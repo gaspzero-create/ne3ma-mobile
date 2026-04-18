@@ -9,7 +9,8 @@ import '../data/repositories/chat_repository.dart';
 import '../services/chat_socket_service.dart';
 
 // ── Backend URL ────────────────────────────────────────
-const String _backendUrl = 'https://ne3ma-prod-service-helo.up.railway.app';
+const String _backendUrl =
+    'https://ne3ma-backend-production-0f70.up.railway.app';
 const String _mineMessageIdsKeyPrefix = 'chat_mine_message_ids';
 
 // ── Repository provider ────────────────────────────────
@@ -20,35 +21,35 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 // ── Chat State ─────────────────────────────────────────
 class ChatState {
   final List<ChatMessageModel> messages;
-  final bool                   isLoading;
-  final bool                   isConnected;
-  final bool                   isSending;
-  final String?                error;
-  final String?                currentRoomId;
+  final bool isLoading;
+  final bool isConnected;
+  final bool isSending;
+  final String? error;
+  final String? currentRoomId;
 
   const ChatState({
-    this.messages      = const [],
-    this.isLoading     = false,
-    this.isConnected   = false,
-    this.isSending     = false,
+    this.messages = const [],
+    this.isLoading = false,
+    this.isConnected = false,
+    this.isSending = false,
     this.error,
     this.currentRoomId,
   });
 
   ChatState copyWith({
     List<ChatMessageModel>? messages,
-    bool?                   isLoading,
-    bool?                   isConnected,
-    bool?                   isSending,
-    String?                 error,
-    String?                 currentRoomId,
+    bool? isLoading,
+    bool? isConnected,
+    bool? isSending,
+    String? error,
+    String? currentRoomId,
   }) {
     return ChatState(
-      messages:      messages      ?? this.messages,
-      isLoading:     isLoading     ?? this.isLoading,
-      isConnected:   isConnected   ?? this.isConnected,
-      isSending:     isSending     ?? this.isSending,
-      error:         error,
+      messages: messages ?? this.messages,
+      isLoading: isLoading ?? this.isLoading,
+      isConnected: isConnected ?? this.isConnected,
+      isSending: isSending ?? this.isSending,
+      error: error,
       currentRoomId: currentRoomId ?? this.currentRoomId,
     );
   }
@@ -58,9 +59,9 @@ class ChatState {
 class ChatNotifier extends StateNotifier<ChatState> {
   final Ref _ref;
   final ChatRepository _repository;
-  StreamSubscription?  _messageSub;
-  StreamSubscription?  _connectionSub;
-  StreamSubscription?  _errorSub;
+  StreamSubscription? _messageSub;
+  StreamSubscription? _connectionSub;
+  StreamSubscription? _errorSub;
 
   ChatNotifier(this._ref, this._repository) : super(const ChatState());
 
@@ -79,10 +80,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
 
     state = state.copyWith(
-      isLoading:     true,
+      isLoading: true,
       currentRoomId: reservationId,
-      messages:      [],
-      error:         null,
+      messages: [],
+      error: null,
     );
 
     try {
@@ -96,17 +97,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
       state = state.copyWith(messages: history, isLoading: false);
 
       // ── 2. Connect socket ─────────────────────
-      await _connectSocket(
-        reservationId,
-        currentUserId: currentUserId,
-      );
-
+      await _connectSocket(reservationId, currentUserId: currentUserId);
     } catch (e) {
       debugPrint('❌ ChatProvider: Init error - $e');
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -119,7 +113,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
     // Get token
     const storage = FlutterSecureStorage();
-    final token   = await storage.read(key: 'access_token');
+    final token = await storage.read(key: 'access_token');
 
     if (token == null) {
       debugPrint('❌ ChatProvider: No token found');
@@ -186,11 +180,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         }
       }
 
-      state = state.copyWith(
-        messages: msgs,
-        isSending: false,
-        error: null,
-      );
+      state = state.copyWith(messages: msgs, isSending: false, error: null);
     });
 
     _errorSub = socket.onError.listen((message) {
@@ -242,7 +232,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     // ── Emit via socket ────────────────────────
     ChatSocketService.instance.sendMessage(
       reservationId: state.currentRoomId!,
-      content:       content.trim(),
+      content: content.trim(),
     );
   }
 
@@ -311,6 +301,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
 }
 
 // ── Provider ──────────────────────────────────────────
-final chatProvider = StateNotifierProvider.autoDispose<ChatNotifier, ChatState>((ref) {
-  return ChatNotifier(ref, ref.read(chatRepositoryProvider));
-});
+final chatProvider = StateNotifierProvider.autoDispose<ChatNotifier, ChatState>(
+  (ref) {
+    return ChatNotifier(ref, ref.read(chatRepositoryProvider));
+  },
+);

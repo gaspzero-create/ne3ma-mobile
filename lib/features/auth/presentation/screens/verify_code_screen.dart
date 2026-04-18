@@ -6,11 +6,12 @@ import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:ne3ma/core/widgets/gasp_button.dart';
 import 'package:ne3ma/features/auth/providers/auth_provider.dart';
+import 'package:ne3ma/l10n/generated/app_localizations.dart';
 
 class VerifyCodeScreen extends ConsumerStatefulWidget {
-const VerifyCodeScreen({
+  const VerifyCodeScreen({
     super.key,
-    this.redirectTo = '/lastintro',  // default
+    this.redirectTo = '/lastintro', // default
   });
 
   final String redirectTo;
@@ -28,7 +29,7 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
   void initState() {
     super.initState();
     _codeControllers = List.generate(6, (_) => TextEditingController());
-    _focusNodes      = List.generate(6, (_) => FocusNode());
+    _focusNodes = List.generate(6, (_) => FocusNode());
   }
 
   @override
@@ -47,7 +48,10 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
         if (pos >= _codeControllers.length) break;
         _codeControllers[pos].text = chars[i];
       }
-      final next = math.min(_codeControllers.length - 1, index + value.length - 1);
+      final next = math.min(
+        _codeControllers.length - 1,
+        index + value.length - 1,
+      );
       _focusNodes[next].requestFocus();
       return;
     }
@@ -64,9 +68,10 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
   Future<void> _handleVerifyCode() async {
     final code = _getCode();
     if (code.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter all 6 digits')),
-      );
+      final loc = AppLocalizations.of(context);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(loc.enterAllDigits)));
       return;
     }
 
@@ -86,42 +91,41 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
         final email = ref.read(otpEmailProvider);
         debugPrint('📧 VerifyCode: Email = $email');
 
-        success = await ref.read(authProvider.notifier).verifyEmailOtp(
-          email: email,
-          otp:   code,
-        );
+        success = await ref
+            .read(authProvider.notifier)
+            .verifyEmailOtp(email: email, otp: code);
         debugPrint('📬 VerifyCode: verifyEmailOtp result = $success');
-
       } else {
         // ── Verify Phone OTP ─────────────────────
         final phone = ref.read(otpPhoneProvider);
         debugPrint('📱 VerifyCode: Phone = $phone');
 
-        success = await ref.read(authProvider.notifier).verifyPhoneOtp(
-          phoneNumber: phone,
-          otp:         code,
-        );
+        success = await ref
+            .read(authProvider.notifier)
+            .verifyPhoneOtp(phoneNumber: phone, otp: code);
         debugPrint('📬 VerifyCode: verifyPhoneOtp result = $success');
       }
 
       if (!mounted) return;
 
-    if (success) {
-  debugPrint('✅ VerifyCode: Going to ${widget.redirectTo}');
-  context.go(widget.redirectTo);
-}else {
+      if (success) {
+        debugPrint('✅ VerifyCode: Going to ${widget.redirectTo}');
+        context.go(widget.redirectTo);
+      } else {
         final error = ref.read(authProvider).error;
         debugPrint('❌ VerifyCode: Failed - $error');
+        final loc = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error ?? 'Verification failed')),
+          SnackBar(content: Text(error ?? loc.verificationFailed)),
         );
       }
     } catch (e) {
       debugPrint('💥 VerifyCode: Exception - $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        final loc = AppLocalizations.of(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(loc.error(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -144,9 +148,10 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
       }
 
       if (mounted) {
+        final loc = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Code resent successfully!'),
+          SnackBar(
+            content: Text(loc.codeResent),
             backgroundColor: AppColors.primaryMid,
           ),
         );
@@ -154,9 +159,10 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
     } catch (e) {
       debugPrint('❌ VerifyCode: Resend failed - $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Resend failed: $e')),
-        );
+        final loc = AppLocalizations.of(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(loc.resendFailed(e.toString()))));
       }
     }
   }
@@ -164,8 +170,9 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
   @override
   Widget build(BuildContext context) {
     final otpType = ref.watch(otpTypeProvider);
-    final email   = ref.watch(otpEmailProvider);
-    final phone   = ref.watch(otpPhoneProvider);
+    final email = ref.watch(otpEmailProvider);
+    final phone = ref.watch(otpPhoneProvider);
+    final loc = AppLocalizations.of(context);
 
     // Responsive sizing for code input fields
     final screenWidth = MediaQuery.of(context).size.width;
@@ -187,17 +194,20 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
                 icon: const Icon(Icons.arrow_back_ios_new_outlined),
               ),
               const SizedBox(height: 32),
-              const Text(
-                'Verify Code',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              Text(
+                loc.verifyCode,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 16),
 
               // ── Show where code was sent ───────────
               Text(
                 otpType == 'email'
-                    ? 'Enter the 6-digit code sent to $email'
-                    : 'Enter the 6-digit code sent to $phone',
+                    ? loc.enterCodeEmail(email)
+                    : loc.enterCodePhone(phone),
                 textAlign: TextAlign.left,
                 style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
@@ -219,7 +229,10 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
                         focusNode: _focusNodes[index],
                         onChanged: (value) => _onCodeChanged(value, index),
                         keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        textDirection: TextDirection.ltr,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         textAlign: TextAlign.center,
                         textAlignVertical: TextAlignVertical.center,
                         maxLength: 1,
@@ -268,18 +281,18 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
                 child: GestureDetector(
                   onTap: _handleResend,
                   child: RichText(
-                    text: const TextSpan(
+                    text: TextSpan(
                       children: [
                         TextSpan(
-                          text: "Didn't receive the code? ",
-                          style: TextStyle(
+                          text: loc.didntReceiveCode,
+                          style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 14,
                           ),
                         ),
                         TextSpan(
-                          text: 'Resend',
-                          style: TextStyle(
+                          text: loc.resend,
+                          style: const TextStyle(
                             color: AppColors.primary,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -294,7 +307,7 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
               const Spacer(),
 
               GaspButton(
-                label: _isLoading ? 'Verifying...' : 'Verify Code',
+                label: _isLoading ? loc.verifying : loc.verifyCode,
                 buttonColor: AppColors.primaryMid,
                 onPressed: _isLoading ? null : _handleVerifyCode,
               ),

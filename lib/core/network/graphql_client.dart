@@ -4,7 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class GraphQLClient {
   GraphQLClient._();
 
-  static const String _baseUrl = 'https://ne3ma-prod-service-helo.up.railway.app/graphql';
+  static const String _baseUrl =
+      'https://ne3ma-backend-production-0f70.up.railway.app/graphql';
   static const _storage = FlutterSecureStorage();
 
   static Dio get dio {
@@ -12,9 +13,9 @@ class GraphQLClient {
       BaseOptions(
         baseUrl: _baseUrl,
         connectTimeout: const Duration(seconds: 30),
-sendTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 300),
-         
+
         headers: {'Content-Type': 'application/json'},
       ),
     );
@@ -94,7 +95,7 @@ sendTimeout: const Duration(seconds: 30),
     required String accessToken,
     required String refreshToken,
   }) async {
-    await _storage.write(key: 'access_token',  value: accessToken);
+    await _storage.write(key: 'access_token', value: accessToken);
     await _storage.write(key: 'refresh_token', value: refreshToken);
   }
 
@@ -103,8 +104,7 @@ sendTimeout: const Duration(seconds: 30),
     await _storage.delete(key: 'refresh_token');
   }
 
-  static Future<String?> getAccessToken() =>
-      _storage.read(key: 'access_token');
+  static Future<String?> getAccessToken() => _storage.read(key: 'access_token');
 
   static Future<String?> getRefreshToken() =>
       _storage.read(key: 'refresh_token');
@@ -127,14 +127,14 @@ sendTimeout: const Duration(seconds: 30),
             }
           ''',
           'variables': {
-            'input': {'refreshToken': refreshToken}
+            'input': {'refreshToken': refreshToken},
           },
         },
       );
 
       final data = response.data['data']['refreshToken'];
       await saveTokens(
-        accessToken:  data['accessToken'],
+        accessToken: data['accessToken'],
         refreshToken: data['refreshToken'],
       );
       return true;

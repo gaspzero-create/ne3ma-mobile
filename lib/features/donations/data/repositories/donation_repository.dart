@@ -5,7 +5,6 @@ import '../graphql/donation_mutations.dart';
 import '../models/donation_model.dart';
 
 class DonationRepository {
-
   // ── Get nearby donations ───────────────────────
   Future<List<DonationModel>> getNearbyDonations({
     required double lat,
@@ -20,14 +19,14 @@ class DonationRepository {
 
     final filters = <String, dynamic>{};
     if (categoryId != null) filters['categoryId'] = categoryId;
-    if (pickupType != null) filters['pickupType']  = pickupType;
-    if (urgentOnly != null) filters['urgentOnly']  = urgentOnly;
+    if (pickupType != null) filters['pickupType'] = pickupType;
+    if (urgentOnly != null) filters['urgentOnly'] = urgentOnly;
 
     final data = await GraphQLClient.query(
       document: DonationQueries.nearbyDonations,
       variables: {
-        'lat':      lat,
-        'lng':      lng,
+        'lat': lat,
+        'lng': lng,
         'radiusKm': radiusKm,
         if (filters.isNotEmpty) 'filters': filters,
       },
@@ -92,11 +91,11 @@ class DonationRepository {
       document: DonationMutations.createDonation,
       variables: {
         'input': {
-          'title':              title,
-          'categoryId':         categoryId,
-          'pickupType':         pickupType,
-          'quantity':           quantity,
-          'expiresAt':          expiresAt,
+          'title': title,
+          'categoryId': categoryId,
+          'pickupType': pickupType,
+          'quantity': quantity,
+          'expiresAt': expiresAt,
           if (description != null) 'description': description,
           if (imageBase64 != null) 'imageBase64': imageBase64,
           if (lat != null) 'lat': lat,
@@ -106,7 +105,7 @@ class DonationRepository {
         },
       },
     );
-    
+
     debugPrint('✅ DonationRepo: Donation created!');
     return DonationModel.fromMap(data['createDonation']);
   }
@@ -144,6 +143,45 @@ class DonationRepository {
     return data['deleteDonation'] as bool;
   }
 
+  Future<DonationModel> updateDonation({
+    required String id,
+    required String title,
+    required String categoryId,
+    required String pickupType,
+    required String quantity,
+    required String expiresAt,
+    String? description,
+    String? imageBase64,
+    double? lat,
+    double? lng,
+    String? meetingZone,
+    bool? checklistConfirmed,
+  }) async {
+    debugPrint('📤 DonationRepo: Updating donation $id...');
+
+    final input = <String, dynamic>{
+      'title': title,
+      'categoryId': categoryId,
+      'pickupType': pickupType,
+      'quantity': quantity,
+      'expiresAt': expiresAt,
+      if (description != null) 'description': description,
+      if (imageBase64 != null) 'imageBase64': imageBase64,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+      if (meetingZone != null) 'meetingZone': meetingZone,
+      if (checklistConfirmed != null) 'checklistConfirmed': checklistConfirmed,
+    };
+
+    final data = await GraphQLClient.query(
+      document: DonationMutations.updateDonation,
+      variables: {'id': id, 'input': input},
+    );
+
+    debugPrint('✅ DonationRepo: Donation updated!');
+    return DonationModel.fromMap(data['updateDonation']);
+  }
+
   Future<List<ReservationModel>> getMyDonationReservations() async {
     debugPrint('📤 DonationRepo: Fetching my donation reservations...');
     final data = await GraphQLClient.query(
@@ -162,5 +200,15 @@ class DonationRepository {
     );
     debugPrint('✅ DonationRepo: Reservation confirmed!');
     return ReservationModel.fromMap(data['confirmReservation']);
+  }
+
+  Future<ReservationModel> completeReservation(String reservationId) async {
+    debugPrint('📤 DonationRepo: Completing reservation $reservationId...');
+    final data = await GraphQLClient.query(
+      document: DonationMutations.completeReservation,
+      variables: {'reservationId': reservationId},
+    );
+    debugPrint('✅ DonationRepo: Reservation completed!');
+    return ReservationModel.fromMap(data['completeReservation']);
   }
 }

@@ -52,6 +52,8 @@ class DonationMutations {
         id
         status
         confirmedAt
+        completedAt
+        updatedAt
       }
     }
   ''';
@@ -60,6 +62,33 @@ class DonationMutations {
   static const String deleteDonation = '''
     mutation DeleteDonation(\$id: ID!) {
       deleteDonation(id: \$id)
+    }
+  ''';
+
+  static const String updateDonation = '''
+    mutation UpdateDonation(\$id: ID!, \$input: UpdateDonationInput!) {
+      updateDonation(id: \$id, input: \$input) {
+        id
+        title
+        description
+        category {
+          id
+          name
+          description
+          isActive
+        }
+        status
+        pickupType
+        quantity
+        expiresAt
+        imageUrl
+        lat
+        lng
+        meetingZone
+        checklistConfirmed
+        createdAt
+        updatedAt
+      }
     }
   ''';
 
