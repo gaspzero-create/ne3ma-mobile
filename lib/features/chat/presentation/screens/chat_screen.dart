@@ -8,6 +8,8 @@ class ChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
   final String otherUserName;
   final String? otherUserAvatarUrl;
+  final String? otherUserBadge;
+  final String? otherUserRole;
   final String donationTitle;
   final String donationStatus;
 
@@ -16,6 +18,8 @@ class ChatScreen extends ConsumerStatefulWidget {
     required this.conversationId,
     required this.otherUserName,
     this.otherUserAvatarUrl,
+    this.otherUserBadge,
+    this.otherUserRole,
     required this.donationTitle,
     required this.donationStatus,
   });
@@ -114,6 +118,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               donationStatus: widget.donationStatus,
               otherUserName: widget.otherUserName,
               otherUserAvatarUrl: widget.otherUserAvatarUrl,
+              otherUserBadge: widget.otherUserBadge,
+              otherUserRole: widget.otherUserRole,
               onBack: () => Navigator.maybePop(context),
               onProfileTap: () {},
             ),
@@ -176,6 +182,8 @@ class _ChatAppBar extends StatelessWidget {
   final String donationStatus;
   final String otherUserName;
   final String? otherUserAvatarUrl;
+  final String? otherUserBadge;
+  final String? otherUserRole;
   final VoidCallback onBack;
   final VoidCallback onProfileTap;
 
@@ -184,12 +192,19 @@ class _ChatAppBar extends StatelessWidget {
     required this.donationStatus,
     required this.otherUserName,
     this.otherUserAvatarUrl,
+    this.otherUserBadge,
+    this.otherUserRole,
     required this.onBack,
     required this.onProfileTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final userMeta = _userMetaLabel(
+      badge: otherUserBadge,
+      role: otherUserRole,
+    );
+
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 12, 16, 12),
       decoration: const BoxDecoration(
@@ -252,27 +267,41 @@ class _ChatAppBar extends StatelessWidget {
                     radius: 20,
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    otherUserName,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                  Flexible(
+                    child: Text(
+                      otherUserName,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  const Icon(
-                    Icons.star_rounded,
-                    size: 14,
-                    color: Color(0xFFFFC107),
-                  ),
-                  const Text(
-                    ' 4.6',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
+                  if (userMeta != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySurface,
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: Text(
+                          userMeta,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                   const Spacer(),
                   const Icon(
                     Icons.arrow_forward_ios_rounded,
@@ -287,6 +316,40 @@ class _ChatAppBar extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _userMetaLabel({String? badge, String? role}) {
+  if (badge != null && badge.isNotEmpty && badge != 'NONE') {
+    switch (badge) {
+      case 'FOOD_DONATOR':
+        return 'Food Donator';
+      case 'BRONZE':
+        return 'Bronze';
+      case 'SILVER':
+        return 'Silver';
+      case 'GOLD':
+        return 'Gold';
+      default:
+        return badge;
+    }
+  }
+
+  if (role != null && role.isNotEmpty) {
+    switch (role) {
+      case 'ASSOCIATION':
+        return 'Association';
+      case 'MAYOR':
+        return 'Mayor';
+      case 'ADMIN':
+        return 'Admin';
+      case 'USER':
+        return 'User';
+      default:
+        return role;
+    }
+  }
+
+  return null;
 }
 
 class _TimeStamp extends StatelessWidget {

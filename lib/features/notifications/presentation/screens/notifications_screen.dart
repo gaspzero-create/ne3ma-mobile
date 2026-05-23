@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ne3ma/core/constants/app_colors.dart';
+import 'package:ne3ma/features/donations/providers/donation_provider.dart';
 import '../../providers/notifications_provider.dart';
+import '../../data/model/notification_model.dart';
 import '../widgets/notification_card.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
@@ -27,27 +30,29 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final state = ref.watch(notificationsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
         leading: context.canPop()
             ? IconButton(
-                icon: const Icon(Icons.chevron_left_rounded,
-                    color: Colors.black, size: 28),
+                icon: const Icon(
+                  Icons.chevron_left_rounded,
+                  color: AppColors.textPrimary,
+                  size: 28,
+                ),
                 onPressed: () => context.pop(),
               )
             : null,
         title: const Text(
-          'Notification',
+          'Notifications',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: Colors.black,
+            color: AppColors.textPrimary,
           ),
         ),
-        // Mark all as read button — only shown when there are unread
         actions: [
           if (state.unreadCount > 0)
             TextButton(
@@ -56,7 +61,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               child: const Text(
                 'Mark all',
                 style: TextStyle(
-                  color: Color(0xFF7FA668),
+                  color: AppColors.primary,
                   fontSize: 13,
                 ),
               ),
@@ -68,45 +73,50 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 
   Widget _buildBody(NotificationsState state) {
-    // ── Loading ──
     if (state.isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF7FA668)),
+        child: CircularProgressIndicator(color: AppColors.primaryMid),
       );
     }
 
-    // ── Error ──
     if (state.error != null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey),
+            const Icon(
+              Icons.wifi_off_rounded,
+              size: 48,
+              color: AppColors.textSecondary,
+            ),
             const SizedBox(height: 12),
-            Text(
+            const Text(
               'Something went wrong',
-              style: TextStyle(color: Colors.grey[600], fontSize: 15),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 15,
+              ),
             ),
             const SizedBox(height: 16),
             TextButton(
               onPressed: () =>
                   ref.read(notificationsProvider.notifier).fetchNotifications(),
-              child: const Text('Retry',
-                  style: TextStyle(color: Color(0xFF7FA668))),
+              child: const Text(
+                'Retry',
+                style: TextStyle(color: AppColors.primary),
+              ),
             ),
           ],
         ),
       );
     }
 
-    // ── Empty state ──
     if (state.isEmpty) {
       return const _EmptyState();
     }
 
-    // ── Notification list ──
     return RefreshIndicator(
-      color: const Color(0xFF7FA668),
+      color: AppColors.primaryMid,
       onRefresh: () =>
           ref.read(notificationsProvider.notifier).fetchNotifications(),
       child: ListView.separated(
@@ -116,18 +126,59 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           final notification = state.notifications[index];
           return NotificationCard(
             notification: notification,
-            onTap: () {
+            onTap: () async {
               if (!notification.isRead) {
-                ref
+                await ref
                     .read(notificationsProvider.notifier)
                     .markAsRead(notification.id);
               }
-              // TODO: navigate based on notification.type
+              if (!context.mounted) return;
+              await _openNotification(notification);
             },
           );
         },
       ),
     );
+  }
+
+  Future<void> _openNotification(NotificationModel notification) async {
+    switch (notification.type) {
+      case NotificationType.message:
+        context.go('/messages');
+        return;
+      case NotificationType.warning:
+        context.go('/profile-tab');
+        return;
+      case NotificationType.reservation:
+      case NotificationType.cancellation:
+      case NotificationType.completion:
+      case NotificationType.nearbyDonation:
+        final donationId = notification.donationId;
+        if (donationId != null && donationId.isNotEmpty) {
+          try {
+            final donation = await ref
+                .read(donationRepositoryProvider)
+                .getDonation(donationId);
+            if (!mounted) return;
+            if (donation != null) {
+              context.push('/donation/${donation.id}', extra: donation);
+              return;
+            }
+          } catch (_) {
+            // Fall back to section routing below if donation lookup fails.
+          }
+        }
+
+        if (!mounted) return;
+        if (notification.type == NotificationType.nearbyDonation) {
+          context.go('/home');
+        } else {
+          context.go('/special');
+        }
+        return;
+      case NotificationType.unknown:
+        return;
+    }
   }
 }
 
@@ -145,14 +196,14 @@ class _EmptyState extends StatelessWidget {
           Icon(
             Icons.notifications_off_outlined,
             size: 80,
-            color: Colors.grey[350],
+            color: AppColors.textHint,
           ),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'No new notifications',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey[400],
+              color: AppColors.textSecondary,
               fontWeight: FontWeight.w400,
             ),
           ),

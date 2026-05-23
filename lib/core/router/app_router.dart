@@ -16,15 +16,21 @@ import 'package:ne3ma/features/donations/data/models/donation_model.dart';
 import 'package:ne3ma/features/donations/presentation/screens/special_tab.dart';
 import 'package:ne3ma/features/home/presentation/screens/home_screen.dart';
 import 'package:ne3ma/features/home/presentation/screens/home_tab.dart';
+import 'package:ne3ma/features/leaderboard/presentation/screens/leaderboard_screen.dart';
 import 'package:ne3ma/features/notifications/presentation/screens/notifications_screen.dart';
+import 'package:ne3ma/features/notifications/presentation/screens/push_debug_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/settings_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/profile_screens.dart';
 import 'package:ne3ma/features/profile/presentation/screens/privacy_policy_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/terms_and_conditions_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/help_and_support_screen.dart';
+import 'package:ne3ma/features/reports/presentation/screens/report_donation_screen.dart';
 
 class AppRouter {
   AppRouter._();
+
+  static final GlobalKey<NavigatorState> rootNavigatorKey =
+      GlobalKey<NavigatorState>();
 
   static const String splash = '/';
   static const String intro = '/intro';
@@ -38,6 +44,8 @@ class AppRouter {
   static const String profile = '/profile';
   static const String home = '/home';
   static const String notifications = '/notifications';
+  static const String pushDebug = '/push-debug';
+  static const String reportDonation = '/report-donation';
 
   static final router = GoRouter(
     initialLocation: splash,
@@ -82,7 +90,9 @@ class AppRouter {
       GoRoute(
         path: verifyCode,
         pageBuilder: (context, state) {
-          final redirect = state.extra as String? ?? lastintro;
+          final redirect =
+              state.uri.queryParameters['redirectTo'] ??
+              (state.extra as String? ?? lastintro);
           return _slideRightPage(
             state: state,
             child: VerifyCodeScreen(redirectTo: redirect),
@@ -106,6 +116,23 @@ class AppRouter {
         path: notifications,
         pageBuilder: (context, state) =>
             _slideRightPage(state: state, child: const NotificationsScreen()),
+      ),
+
+      GoRoute(
+        path: pushDebug,
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const PushDebugScreen()),
+      ),
+
+      GoRoute(
+        path: reportDonation,
+        pageBuilder: (context, state) {
+          final donation = state.extra as DonationModel;
+          return _slideRightPage(
+            state: state,
+            child: ReportDonationScreen(donation: donation),
+          );
+        },
       ),
 
       GoRoute(
@@ -168,6 +195,12 @@ class AppRouter {
             child: DonationDetailScreen(donation: donation),
           );
         },
+      ),
+
+      GoRoute(
+        path: '/leaderboard',
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const LeaderboardScreen()),
       ),
 
       //       ShellRoute(
@@ -321,20 +354,31 @@ class AppRouter {
   }
 
   static GoRouter routerWithRef(WidgetRef ref) => GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: splash,
     // ── Auth redirect ──────────────────────────
     redirect: (context, state) {
       final authState = ref.read(authProvider);
       final isAuth = authState.isAuthenticated;
-      final isLoading = authState.isLoading;
+      final isCheckingSession = authState.isCheckingSession;
+      final hasPendingVerification = authState.hasPendingVerification;
+      final pendingRedirect = authState.pendingOtpRedirectTo ?? lastintro;
 
       // Still checking auth → stay on splash
-      if (isLoading) return splash;
+      if (isCheckingSession) return splash;
+
+      final goingToVerify = state.matchedLocation.startsWith(verifyCode);
+      if (hasPendingVerification && !goingToVerify) {
+        return '$verifyCode?redirectTo=$pendingRedirect';
+      }
 
       final protectedRoutes = [
         '/home',
         '/messages',
         '/add',
+        '/donation',
+        '/notifications',
+        '/report-donation',
         '/settings',
         '/profile',
         '/profile-tab',
@@ -352,7 +396,7 @@ class AppRouter {
       final isGoingToAuth = authRoutes.any(
         (r) => state.matchedLocation.startsWith(r),
       );
-      if (isAuth && isGoingToAuth) return home;
+      if (isAuth && isGoingToAuth && !hasPendingVerification) return home;
 
       return null; // no redirect
     },

@@ -11,6 +11,8 @@ class _ConversationItem {
   final String id;
   final String name;
   final String? avatarUrl;
+  final String? badge;
+  final String? role;
   final String lastMessage;
   final String time;
   final String donationTitle;
@@ -23,6 +25,8 @@ class _ConversationItem {
     required this.id,
     required this.name,
     this.avatarUrl,
+    this.badge,
+    this.role,
     required this.lastMessage,
     required this.time,
     required this.donationTitle,
@@ -118,6 +122,8 @@ class _MessagesTabState extends ConsumerState<MessagesTab> {
           conversationId: c.id,
           otherUserName: c.name,
           otherUserAvatarUrl: c.avatarUrl,
+          otherUserBadge: c.badge,
+          otherUserRole: c.role,
           donationTitle: c.donationTitle,
           donationStatus: c.donationStatus,
         ),
@@ -217,6 +223,8 @@ class _MessagesTabState extends ConsumerState<MessagesTab> {
           id: r.id,
           name: r.donorName ?? 'Donor',
           avatarUrl: r.donorAvatarUrl,
+          badge: r.donorBadge,
+          role: r.donorRole,
           lastMessage: r.donationTitle ?? 'Confirmed reservation chat',
           time: _fmtTime(r.confirmedAt ?? r.reservedAt),
           donationTitle: r.donationTitle ?? 'Donation',
@@ -235,6 +243,8 @@ class _MessagesTabState extends ConsumerState<MessagesTab> {
             id: r.id,
             name: r.beneficiaryName ?? 'Beneficiary',
             avatarUrl: r.beneficiaryAvatarUrl,
+            badge: r.beneficiaryBadge,
+            role: r.beneficiaryRole,
             lastMessage: r.donationTitle ?? 'Confirmed donation chat',
             time: _fmtTime(r.confirmedAt ?? r.reservedAt),
             donationTitle: r.donationTitle ?? 'Donation',

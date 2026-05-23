@@ -87,6 +87,60 @@ class DonationModel {
     );
   }
 
+  DonationModel copyWith({
+    String? id,
+    String? title,
+    String? description,
+    String? category,
+    String? categoryId,
+    String? status,
+    String? pickupType,
+    String? quantity,
+    String? donorId,
+    String? donorName,
+    String? donorAvatarUrl,
+    String? donorBadge,
+    String? donorRole,
+    String? donorWilaya,
+    String? donorBaladiya,
+    String? expiresAt,
+    String? imageUrl,
+    double? lat,
+    double? lng,
+    String? meetingZone,
+    double? distanceKm,
+    bool? checklistConfirmed,
+    String? createdAt,
+    String? updatedAt,
+  }) {
+    return DonationModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      category: category ?? this.category,
+      categoryId: categoryId ?? this.categoryId,
+      status: status ?? this.status,
+      pickupType: pickupType ?? this.pickupType,
+      quantity: quantity ?? this.quantity,
+      donorId: donorId ?? this.donorId,
+      donorName: donorName ?? this.donorName,
+      donorAvatarUrl: donorAvatarUrl ?? this.donorAvatarUrl,
+      donorBadge: donorBadge ?? this.donorBadge,
+      donorRole: donorRole ?? this.donorRole,
+      donorWilaya: donorWilaya ?? this.donorWilaya,
+      donorBaladiya: donorBaladiya ?? this.donorBaladiya,
+      expiresAt: expiresAt ?? this.expiresAt,
+      imageUrl: imageUrl ?? this.imageUrl,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+      meetingZone: meetingZone ?? this.meetingZone,
+      distanceKm: distanceKm ?? this.distanceKm,
+      checklistConfirmed: checklistConfirmed ?? this.checklistConfirmed,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   // ── Helpers ────────────────────────────────────
   bool get isAvailable => status == 'AVAILABLE';
   bool get isUrgent => isUrgentCategory(category);
@@ -108,6 +162,7 @@ class ReservationModel {
   final String reservedAt;
   final String? confirmedAt;
   final String? updatedAt;
+  final String? donorId;
 
   // ── Beneficiary info (from myDonationReservations) ─
   final String? beneficiaryId;
@@ -117,10 +172,16 @@ class ReservationModel {
   final String? beneficiaryWilaya;
   final String? beneficiaryBaladiya;
   final String? beneficiaryAvatarUrl;
+  final String? beneficiaryBadge;
+  final String? beneficiaryRole;
 
   // ── Donor info (from myReservations) ─
   final String? donorName;
   final String? donorAvatarUrl;
+  final String? donorBadge;
+  final String? donorRole;
+  final String? donorWilaya;
+  final String? donorBaladiya;
 
   // ── Donation info (from myDonationReservations) ─
   final String? donationId;
@@ -131,6 +192,8 @@ class ReservationModel {
   final String? donationMeetingZone;
   final String? donationPickupType;
   final String? donationQuantity;
+  final double? donationLat;
+  final double? donationLng;
 
   const ReservationModel({
     required this.id,
@@ -139,6 +202,7 @@ class ReservationModel {
     required this.reservedAt,
     this.confirmedAt,
     this.updatedAt,
+    this.donorId,
     this.beneficiaryId,
     this.beneficiaryName,
     this.beneficiaryPhoneNumber,
@@ -146,8 +210,14 @@ class ReservationModel {
     this.beneficiaryWilaya,
     this.beneficiaryBaladiya,
     this.beneficiaryAvatarUrl,
+    this.beneficiaryBadge,
+    this.beneficiaryRole,
     this.donorName,
     this.donorAvatarUrl,
+    this.donorBadge,
+    this.donorRole,
+    this.donorWilaya,
+    this.donorBaladiya,
     this.donationId,
     this.donationTitle,
     this.donationCategory,
@@ -156,6 +226,8 @@ class ReservationModel {
     this.donationMeetingZone,
     this.donationPickupType,
     this.donationQuantity,
+    this.donationLat,
+    this.donationLng,
   });
 
   factory ReservationModel.fromMap(Map<String, dynamic> map) {
@@ -181,6 +253,7 @@ class ReservationModel {
       reservedAt: map['reservedAt'] ?? map['createdAt'] ?? '',
       confirmedAt: map['confirmedAt'],
       updatedAt: map['updatedAt'],
+      donorId: parsedDonor?['id'],
       beneficiaryId: beneficiary?['id'],
       beneficiaryName: beneficiary?['fullName'],
       beneficiaryPhoneNumber: beneficiary?['phoneNumber'],
@@ -188,8 +261,14 @@ class ReservationModel {
       beneficiaryWilaya: beneficiary?['wilaya'],
       beneficiaryBaladiya: beneficiary?['baladiya'],
       beneficiaryAvatarUrl: beneficiary?['avatarUrl'],
+      beneficiaryBadge: beneficiary?['badge'],
+      beneficiaryRole: beneficiary?['role'],
       donorName: parsedDonor?['fullName'] ?? parsedDonor?['name'],
       donorAvatarUrl: parsedDonor?['avatarUrl'],
+      donorBadge: parsedDonor?['badge'],
+      donorRole: parsedDonor?['role'],
+      donorWilaya: parsedDonor?['wilaya'],
+      donorBaladiya: parsedDonor?['baladiya'],
       donationId: donation?['id'],
       donationTitle: donation?['title'],
       donationCategory: parsedCategory.name,
@@ -198,6 +277,8 @@ class ReservationModel {
       donationMeetingZone: donation?['meetingZone'],
       donationPickupType: donation?['pickupType'],
       donationQuantity: donation?['quantity'],
+      donationLat: (donation?['lat'] as num?)?.toDouble(),
+      donationLng: (donation?['lng'] as num?)?.toDouble(),
     );
   }
 }

@@ -176,7 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               // ── Login Button ───────────────────
               GaspButton(
-                label: _isLoading ? loc.loggingIn : loc.login,
+                label: loc.login,
                 onPressed: _isLoading ? null : _handleLogin,
                 height: 60,
                 borderRadius: 30,

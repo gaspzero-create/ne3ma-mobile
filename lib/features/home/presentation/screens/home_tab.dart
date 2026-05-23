@@ -7,6 +7,7 @@ import 'package:ne3ma/core/providers/location_provider.dart';
 import 'package:ne3ma/features/donations/data/models/donation_model.dart';
 import 'package:ne3ma/features/donations/presentation/screens/add_donation_screen.dart';
 import 'package:ne3ma/features/donations/providers/donation_provider.dart';
+import 'package:ne3ma/features/notifications/providers/notifications_provider.dart';
 import 'package:ne3ma/features/profile/data/model/profile_model.dart';
 import 'package:ne3ma/features/profile/provider/profile_provider.dart';
 import 'package:ne3ma/l10n/generated/app_localizations.dart';
@@ -25,7 +26,13 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   String? _locationCountry;
   String? _locationLabel;
 
-  static const _filterOptions = <String?>[null, 'FRESH', 'DRY', 'URGENT', 'MY'];
+  static const _filterOptions = <String?>[
+    null,
+    'FRESH',
+    'DRY',
+    'URGENT',
+    DonationFilter.myDonationsKey,
+  ];
 
   List<String> _getFilterLabels(AppLocalizations loc) {
     return [loc.all, loc.fresh, loc.dry, loc.urgent, loc.myDonations];
@@ -40,8 +47,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
       final loc = ref.read(locationProvider);
       await _syncLocationHeader(loc);
-      _fetchDonations(lat: loc.safeLat, lng: loc.safeLng);
       await ref.read(donationsProvider.notifier).fetchMyDonations();
+      _fetchDonations(lat: loc.safeLat, lng: loc.safeLng);
     });
   }
 
@@ -109,30 +116,52 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   }
 
   void _fetchDonations({required double lat, required double lng}) {
-    ref
-        .read(donationsProvider.notifier)
-        .fetchNearbyDonations(lat: lat, lng: lng);
+    final query = _searchController.text.trim();
+    if (query.isNotEmpty) {
+      ref
+          .read(donationsProvider.notifier)
+          .searchDonations(query: query, lat: lat, lng: lng);
+    } else {
+      ref
+          .read(donationsProvider.notifier)
+          .fetchNearbyDonations(lat: lat, lng: lng);
+    }
   }
 
   Future<void> _onRefresh() async {
     await ref.read(locationProvider.notifier).fetchLocation();
     final loc = ref.read(locationProvider);
     await _syncLocationHeader(loc);
-    _fetchDonations(lat: loc.safeLat, lng: loc.safeLng);
     await ref.read(donationsProvider.notifier).fetchMyDonations();
+    _fetchDonations(lat: loc.safeLat, lng: loc.safeLng);
   }
 
   @override
   Widget build(BuildContext context) {
     final donationsState = ref.watch(donationsProvider);
+    final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
     final profile = ref.watch(profileProvider).profile;
     final loc = AppLocalizations.of(context);
+    final currentUserId = profile?.id;
 
     final activeFilter = donationsState.filter.categoryId;
-    final isMyDonations = activeFilter == 'MY';
+    final isMyDonations = activeFilter == DonationFilter.myDonationsKey;
+
+    final myDonationsById = <String, DonationModel>{
+      for (final donation in donationsState.myDonations) donation.id: donation,
+      for (final donation in donationsState.donations)
+        if (currentUserId != null && donation.donorId == currentUserId)
+          donation.id: donation,
+    };
+
     final displayed = isMyDonations
-        ? donationsState.myDonations
-        : donationsState.filteredDonations;
+        ? myDonationsById.values.toList()
+        : donationsState.filteredDonations
+              .where(
+                (donation) =>
+                    currentUserId == null || donation.donorId != currentUserId,
+              )
+              .toList();
     final grouped = _groupByCategory(displayed);
 
     final displayCountry = _locationCountry ?? 'Algeria';
@@ -205,12 +234,21 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           ],
                         ),
                       ),
-                      _IconButton(icon: Icons.search_rounded, onTap: () {}),
+                      _IconButton(
+                        icon: Icons.search_rounded,
+                        onTap: () {
+                          final locRef = ref.read(locationProvider);
+                          _fetchDonations(
+                            lat: locRef.safeLat,
+                            lng: locRef.safeLng,
+                          );
+                        },
+                      ),
                       const SizedBox(width: 8),
                       _IconButton(
                         icon: Icons.notifications_outlined,
                         onTap: () => context.push('/notifications'),
-                        hasBadge: true,
+                        hasBadge: unreadNotifications > 0,
                       ),
                       const SizedBox(width: 8),
                       GestureDetector(
@@ -255,6 +293,14 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     ),
                     child: TextField(
                       controller: _searchController,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) {
+                        final locRef = ref.read(locationProvider);
+                        _fetchDonations(
+                          lat: locRef.safeLat,
+                          lng: locRef.safeLng,
+                        );
+                      },
                       decoration: InputDecoration(
                         hintText: loc.searchAnything,
                         hintStyle: const TextStyle(
@@ -288,13 +334,13 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
                         return GestureDetector(
                           onTap: () {
-                            if (option == 'MY') {
+                            if (option == DonationFilter.myDonationsKey) {
                               ref
                                   .read(donationsProvider.notifier)
                                   .fetchMyDonations();
                               ref
                                   .read(donationsProvider.notifier)
-                                  .setFilter('MY');
+                                  .setFilter(DonationFilter.myDonationsKey);
                               return;
                             }
 
@@ -604,11 +650,23 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Icon(
-                          Icons.favorite_border_rounded,
-                          size: 18,
-                          color: AppColors.accent,
-                        ),
+                        if (!isMyDonationCard)
+                          GestureDetector(
+                            onTap: () => _openReportDonation(donation),
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: AppColors.errorSurface,
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                              child: const Icon(
+                                Icons.flag_outlined,
+                                size: 16,
+                                color: AppColors.error,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -624,40 +682,60 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const CircleAvatar(
+                        CircleAvatar(
                           radius: 10,
                           backgroundColor: AppColors.primaryMid,
+                          backgroundImage:
+                              donation.donorAvatarUrl != null &&
+                                  donation.donorAvatarUrl!.isNotEmpty
+                              ? NetworkImage(donation.donorAvatarUrl!)
+                              : null,
+                          child:
+                              donation.donorAvatarUrl == null ||
+                                  donation.donorAvatarUrl!.isEmpty
+                              ? Text(
+                                  _donorInitial(donation),
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
                           child: Text(
-                            'K',
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
+                            isMyDonationCard ? 'You' : _donorName(donation),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (!isMyDonationCard &&
+                            donation.donorBadge != null) ...[
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.workspace_premium_rounded,
+                            size: 11,
+                            color: AppColors.primary,
+                          ),
+                          Flexible(
+                            child: Text(
+                              ' ${_badgeLabel(donation.donorBadge!)}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.textSecondary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text(
-                          'Karima',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.star_rounded,
-                          size: 11,
-                          color: Color(0xFFFFC107),
-                        ),
-                        const Text(
-                          ' 4.7 · 56 Posts',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -667,7 +745,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         Expanded(
                           child: Text(
                             donation.meetingZone ??
-                                'Les arcades, Skikda ${donation.distanceText}',
+                                (donation.distanceText.isNotEmpty
+                                    ? donation.distanceText
+                                    : 'Meeting zone unavailable'),
                             style: const TextStyle(
                               fontSize: 10,
                               color: AppColors.textSecondary,
@@ -896,6 +976,37 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  void _openReportDonation(DonationModel donation) {
+    context.push('/report-donation', extra: donation);
+  }
+
+  String _donorName(DonationModel donation) {
+    final name = donation.donorName?.trim();
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+    return 'Community Member';
+  }
+
+  String _donorInitial(DonationModel donation) {
+    return _donorName(donation).characters.first.toUpperCase();
+  }
+
+  String _badgeLabel(String badge) {
+    switch (badge) {
+      case 'FOOD_DONATOR':
+        return 'Food Donator';
+      case 'BRONZE':
+        return 'Bronze';
+      case 'SILVER':
+        return 'Silver';
+      case 'GOLD':
+        return 'Gold';
+      default:
+        return badge;
+    }
   }
 }
 

@@ -3,14 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:ne3ma/core/network/graphql_client.dart';
 import 'package:ne3ma/features/auth/providers/auth_provider.dart';
 import '../data/models/chat_message_model.dart';
 import '../data/repositories/chat_repository.dart';
 import '../services/chat_socket_service.dart';
 
-// ── Backend URL ────────────────────────────────────────
-const String _backendUrl =
-    'https://ne3ma-backend-production-0f70.up.railway.app';
 const String _mineMessageIdsKeyPrefix = 'chat_mine_message_ids';
 
 // ── Repository provider ────────────────────────────────
@@ -208,7 +206,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       return;
     }
 
-    socket.connect(baseUrl: _backendUrl, token: token);
+    socket.connect(baseUrl: GraphQLClient.backendBaseUrl, token: token);
   }
 
   // ── Send a message ─────────────────────────────

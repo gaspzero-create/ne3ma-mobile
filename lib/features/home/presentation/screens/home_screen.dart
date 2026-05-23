@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/bottom_nav_bar.dart';
 import '../../../chat/providers/messages_badge_provider.dart';
 import '../../../donations/providers/donation_provider.dart';
+import '../../../notifications/providers/notifications_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, required this.child});
@@ -33,6 +34,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // Fetch reservations globally so the nav bar badges are populated immediately
       ref.read(donationsProvider.notifier).fetchMyReservations();
       ref.read(donationsProvider.notifier).fetchMyDonationReservations();
+      ref.read(notificationsProvider.notifier).fetchNotifications();
     });
 
     // Background poll every 30s to keep badges updated (lightweight, no spinners)
@@ -43,6 +45,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ref
           .read(donationsProvider.notifier)
           .fetchMyDonationReservations(background: true);
+      ref
+          .read(notificationsProvider.notifier)
+          .fetchNotifications(background: true);
     });
   }
 

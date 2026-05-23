@@ -52,10 +52,8 @@ class LocationNotifier extends StateNotifier<LocationState> {
       debugPrint('✅ LocationProvider: ${pos.latitude}, ${pos.longitude}');
       state = state.copyWith(
         isLoading: false,
-        lat:
-            35.193279, // Hardcoded for Sidi Bel Abbes testing (was pos.latitude)
-        lng:
-            -0.630094, // Hardcoded for Sidi Bel Abbes testing (was pos.longitude)
+        lat: pos.latitude,
+        lng: pos.longitude,
       );
     } catch (e) {
       debugPrint('❌ LocationProvider: $e — using fallback');

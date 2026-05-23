@@ -24,6 +24,7 @@ class ProfileRepository {
     String? avatarUrl,
     String? wilaya,
     String? baladiya,
+    String? pushToken,
   }) async {
     debugPrint('📤 Profile: Updating profile...');
 
@@ -34,6 +35,7 @@ class ProfileRepository {
     if (avatarUrl != null) input['avatarUrl'] = avatarUrl;
     if (wilaya    != null) input['wilaya']    = wilaya;
     if (baladiya  != null) input['baladiya']  = baladiya;
+    if (pushToken != null) input['pushToken'] = pushToken;
 
     final data = await GraphQLClient.query(
       document: ProfileMutations.updateProfile,
@@ -41,5 +43,9 @@ class ProfileRepository {
     );
     debugPrint('✅ Profile: Updated successfully');
     return ProfileModel.fromMap(data['updateProfile']);
+  }
+
+  Future<void> updatePushToken(String pushToken) async {
+    await updateProfile(pushToken: pushToken);
   }
 }

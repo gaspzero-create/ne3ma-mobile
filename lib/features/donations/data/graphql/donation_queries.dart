@@ -1,6 +1,22 @@
 class DonationQueries {
   DonationQueries._();
 
+  static const String getRouteForReservation = '''
+    query GetRouteForReservation(\$input: GetRouteInput!) {
+      getRouteForReservation(input: \$input) {
+        distance
+        duration
+        geometry
+        steps {
+          distance
+          duration
+          instruction
+          name
+        }
+      }
+    }
+  ''';
+
   // ── Nearby donations (home feed) ───────────────
   static const String nearbyDonations = '''
     query NearbyDonations(
@@ -18,6 +34,15 @@ class DonationQueries {
         id
         title
         description
+        donor {
+          id
+          fullName
+          avatarUrl
+          badge
+          role
+          wilaya
+          baladiya
+        }
         category {
           id
           name
@@ -46,6 +71,15 @@ class DonationQueries {
         id
         title
         description
+        donor {
+          id
+          fullName
+          avatarUrl
+          badge
+          role
+          wilaya
+          baladiya
+        }
         category {
           id
           name
@@ -74,6 +108,15 @@ class DonationQueries {
         id
         title
         description
+        donor {
+          id
+          fullName
+          avatarUrl
+          badge
+          role
+          wilaya
+          baladiya
+        }
         category {
           id
           name
@@ -103,6 +146,15 @@ class DonationQueries {
       confirmedAt
       createdAt
       updatedAt
+      donor {
+        id
+        fullName
+        avatarUrl
+        badge
+        role
+        wilaya
+        baladiya
+      }
       donation {
         id
         title
@@ -114,6 +166,8 @@ class DonationQueries {
         meetingZone
         pickupType
         quantity
+        lat
+        lng
       }
     }
   }
@@ -131,6 +185,8 @@ class DonationQueries {
       beneficiary {
         id
         fullName
+        badge
+        role
         phoneNumber
         email
         wilaya
@@ -148,8 +204,47 @@ class DonationQueries {
         meetingZone
         pickupType
         quantity
+        lat
+        lng
       }
     }
   }
 ''';
+
+  // ── Search donations ───────────────────────────
+  static const String searchDonations = '''
+    query SearchDonations(\$input: DonationSearchInput!) {
+      searchDonations(input: \$input) {
+        id
+        title
+        description
+        donor {
+          id
+          fullName
+          avatarUrl
+          badge
+          role
+          wilaya
+          baladiya
+        }
+        category {
+          id
+          name
+          description
+          isActive
+        }
+        status
+        pickupType
+        quantity
+        expiresAt
+        imageUrl
+        lat
+        lng
+        meetingZone
+        distanceKm
+        checklistConfirmed
+        createdAt
+      }
+    }
+  ''';
 }

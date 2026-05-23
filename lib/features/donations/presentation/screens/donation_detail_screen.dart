@@ -4,6 +4,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:ne3ma/core/providers/location_provider.dart';
+import 'package:ne3ma/features/auth/providers/auth_provider.dart';
+import 'package:ne3ma/features/profile/provider/profile_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../data/models/donation_model.dart';
 import '../../providers/donation_provider.dart';
@@ -151,11 +153,15 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final donation = widget.donation;
+    final currentUserId =
+        ref.watch(profileProvider).profile?.id ??
+        ref.watch(currentUserProvider)?.id;
+    final canReport = donation.donorId != null && donation.donorId != currentUserId;
 
     return Scaffold(
       backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
-      appBar: _buildAppBar(context),
+      appBar: _buildAppBar(context, donation: donation, canReport: canReport),
       body: Column(
         children: [
           // ── Scrollable content ───────────────
@@ -210,7 +216,11 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
   }
 
   // ── AppBar ─────────────────────────────────────
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context, {
+    required DonationModel donation,
+    required bool canReport,
+  }) {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -236,21 +246,22 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
         ),
       ),
       actions: [
-        Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.9),
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            icon: const Icon(
-              Icons.favorite_border_rounded,
-              color: AppColors.accent,
-              size: 20,
+        if (canReport)
+          Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.9),
+              shape: BoxShape.circle,
             ),
-            onPressed: () {},
+            child: IconButton(
+              icon: const Icon(
+                Icons.flag_outlined,
+                color: AppColors.error,
+                size: 20,
+              ),
+              onPressed: () => _openReportDonation(donation),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -472,7 +483,7 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  donorBadge ?? 'Member',
+                  donorBadge ?? donorRole ?? 'Member',
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.primary,
@@ -566,7 +577,7 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: SizedBox(
-            height: 150,
+            height: 240,
             width: double.infinity,
             child: Stack(
               children: [
@@ -709,7 +720,7 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            height: 150,
+            height: 240,
             width: double.infinity,
             color: const Color(0xFFE8F0E8),
             child: Stack(
@@ -904,6 +915,10 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
       case 'EXPIRED':   return 'Expired';
       default:          return status;
     }
+  }
+
+  void _openReportDonation(DonationModel donation) {
+    context.push('/report-donation', extra: donation);
   }
 
   String _donorLocation(DonationModel donation) {

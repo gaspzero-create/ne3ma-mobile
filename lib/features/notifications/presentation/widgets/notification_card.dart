@@ -1,47 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:ne3ma/core/constants/app_colors.dart';
 import 'package:ne3ma/features/notifications/data/model/notification_model.dart';
 
-
 class NotificationCard extends StatelessWidget {
-  final NotificationModel notification;
-  final VoidCallback? onTap;
-
   const NotificationCard({
     super.key,
     required this.notification,
     this.onTap,
   });
 
+  final NotificationModel notification;
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final isUnread = !notification.isRead;
+
+    return InkWell(
       onTap: onTap,
       child: Container(
-        color: const Color(0xFFD8E8C3), // light sage green from Figma
+        color: isUnread ? AppColors.primarySurface : Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Left: type icon in green circle ──
             _TypeIcon(type: notification.type),
             const SizedBox(width: 12),
-
-            // ── Middle: title + subtitle + time ──
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Text(
                           notification.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1A1A1A),
+                            fontWeight: isUnread
+                                ? FontWeight.w700
+                                : FontWeight.w600,
+                            color: AppColors.textPrimary,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -49,41 +50,77 @@ class NotificationCard extends StatelessWidget {
                         _formatTime(notification.createdAt),
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF9E9E9E),
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(
-                    notification.subtitle,
+                    notification.body,
                     style: const TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF757575),
+                      color: AppColors.textSecondary,
+                      height: 1.35,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
+                  if (notification.userName != null &&
+                      notification.userName!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 10,
+                          backgroundColor: AppColors.primaryMid,
+                          backgroundImage:
+                              notification.userAvatarUrl != null &&
+                                  notification.userAvatarUrl!.isNotEmpty
+                              ? NetworkImage(notification.userAvatarUrl!)
+                              : null,
+                          child:
+                              notification.userAvatarUrl == null ||
+                                  notification.userAvatarUrl!.isEmpty
+                              ? Text(
+                                  notification.userName![0].toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            notification.userName!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-
-            // ── Right: thumbnail image ──
-            if (notification.imageUrl != null) ...[
-              const SizedBox(width: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  notification.imageUrl!,
-                  width: 52,
-                  height: 52,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 52,
-                    height: 52,
-                    color: const Color(0xFFE0E0E0),
-                    child: const Icon(Icons.image_not_supported,
-                        size: 20, color: Colors.grey),
+            if (isUnread) ...[
+              const SizedBox(width: 10),
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: SizedBox(
+                  width: 8,
+                  height: 8,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
               ),
@@ -98,56 +135,93 @@ class NotificationCard extends StatelessWidget {
     final now = DateTime.now();
     final diff = now.difference(dt);
 
-    if (diff.inDays == 0) {
-      final hour = dt.hour;
-      final minute = dt.minute.toString().padLeft(2, '0');
-      final period = hour >= 12 ? 'PM' : 'AM';
-      final displayHour = hour % 12 == 0 ? 12 : hour % 12;
-      return '$displayHour:$minute $period';
-    } else if (diff.inDays == 1) {
-      return 'Yesterday';
-    } else {
-      return '${diff.inDays} days ago';
-    }
+    if (diff.inMinutes < 1) return 'Now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m';
+    if (diff.inDays < 1) return '${diff.inHours}h';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${diff.inDays}d';
   }
 }
 
-// ─── Type Icon ────────────────────────────────────────────────────────────────
-
 class _TypeIcon extends StatelessWidget {
-  final NotificationType type;
-
   const _TypeIcon({required this.type});
+
+  final NotificationType type;
 
   @override
   Widget build(BuildContext context) {
+    final config = _iconConfig(type);
     return Container(
       width: 44,
       height: 44,
-      decoration: const BoxDecoration(
-        color: Color(0xFF7FA668), // sage green
+      decoration: BoxDecoration(
+        color: config.background,
         shape: BoxShape.circle,
       ),
       child: Icon(
-        _iconFor(type),
-        color: Colors.white,
+        config.icon,
+        color: config.foreground,
         size: 22,
       ),
     );
   }
 
-  IconData _iconFor(NotificationType type) {
+  _NotificationIconConfig _iconConfig(NotificationType type) {
     switch (type) {
-      case NotificationType.reserved:
-        return Icons.attach_money_rounded;
-      case NotificationType.confirmed:
-        return Icons.volunteer_activism_rounded;
-      case NotificationType.cancelled:
-        return Icons.cancel_outlined;
-      case NotificationType.chat:
-        return Icons.chat_bubble_outline_rounded;
-      case NotificationType.general:
-        return Icons.inventory_2_outlined;
+      case NotificationType.reservation:
+        return const _NotificationIconConfig(
+          icon: Icons.notifications_active_rounded,
+          background: AppColors.primarySurface,
+          foreground: AppColors.primary,
+        );
+      case NotificationType.cancellation:
+        return const _NotificationIconConfig(
+          icon: Icons.cancel_outlined,
+          background: AppColors.errorSurface,
+          foreground: AppColors.error,
+        );
+      case NotificationType.completion:
+        return const _NotificationIconConfig(
+          icon: Icons.check_circle_outline_rounded,
+          background: Color(0xFFE9F7EF),
+          foreground: Color(0xFF2E7D32),
+        );
+      case NotificationType.warning:
+        return const _NotificationIconConfig(
+          icon: Icons.warning_amber_rounded,
+          background: Color(0xFFFFF4E5),
+          foreground: Color(0xFFF59E0B),
+        );
+      case NotificationType.message:
+        return const _NotificationIconConfig(
+          icon: Icons.chat_bubble_outline_rounded,
+          background: AppColors.accentSurface,
+          foreground: AppColors.accent,
+        );
+      case NotificationType.nearbyDonation:
+        return const _NotificationIconConfig(
+          icon: Icons.location_on_outlined,
+          background: AppColors.surfaceVariant,
+          foreground: AppColors.primary,
+        );
+      case NotificationType.unknown:
+        return const _NotificationIconConfig(
+          icon: Icons.notifications_none_rounded,
+          background: AppColors.surfaceVariant,
+          foreground: AppColors.textSecondary,
+        );
     }
   }
+}
+
+class _NotificationIconConfig {
+  const _NotificationIconConfig({
+    required this.icon,
+    required this.background,
+    required this.foreground,
+  });
+
+  final IconData icon;
+  final Color background;
+  final Color foreground;
 }

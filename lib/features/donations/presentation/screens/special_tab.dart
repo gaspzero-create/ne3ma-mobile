@@ -6,6 +6,7 @@ import 'package:ne3ma/features/donations/data/models/donation_model.dart';
 import 'package:ne3ma/features/donations/providers/donation_provider.dart';
 import 'package:ne3ma/features/donations/presentation/screens/reservation_confirmed_screen.dart';
 import 'package:ne3ma/features/donations/presentation/screens/reservation_declined_screen.dart';
+import 'package:ne3ma/features/donations/presentation/screens/reservation_route_screen.dart';
 
 class SpecialTab extends ConsumerStatefulWidget {
   const SpecialTab({super.key});
@@ -404,6 +405,23 @@ class _MyReservedTab extends ConsumerWidget {
           return _BeneficiaryReservationCard(
             reservation: reservation,
             onCancel: () => _onCancel(context, ref, reservation.id),
+            onRoute:
+                reservation.status == 'CONFIRMED' &&
+                    reservation.donationLat != null &&
+                    reservation.donationLng != null
+                ? () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ReservationRouteScreen(
+                        reservationId: reservation.id,
+                        donationTitle: reservation.donationTitle ?? 'Donation',
+                        meetingZone: reservation.donationMeetingZone,
+                        destinationLat: reservation.donationLat,
+                        destinationLng: reservation.donationLng,
+                      ),
+                    ),
+                  )
+                : null,
             onChat: reservation.status == 'CONFIRMED'
                 ? () => Navigator.push(
                     context,
@@ -558,18 +576,26 @@ class _DonorReservationCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Row(
-                        children: const [
-                          Icon(
-                            Icons.star_rounded,
-                            color: Color(0xFFF59E0B),
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            color: AppColors.textSecondary,
                             size: 14,
                           ),
-                          SizedBox(width: 2),
-                          Text(
-                            '4.7',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              _personLocation(
+                                baladiya: reservation.beneficiaryBaladiya,
+                                wilaya: reservation.beneficiaryWilaya,
+                                fallback: 'Community member',
+                              ),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -832,22 +858,25 @@ class _BeneficiaryReservationCard extends StatelessWidget {
   const _BeneficiaryReservationCard({
     required this.reservation,
     required this.onCancel,
+    this.onRoute,
     this.onChat,
   });
 
   final ReservationModel reservation;
   final VoidCallback onCancel;
+  final VoidCallback? onRoute;
   final VoidCallback? onChat;
 
   @override
   Widget build(BuildContext context) {
     final isPending = reservation.status == 'PENDING';
     final isConfirmed = reservation.status == 'CONFIRMED';
+    final distanceText = '';
 
     // Dynamic donor fetching with fallback
     final String donorName = reservation.donorName?.isNotEmpty == true
         ? reservation.donorName!
-        : 'Karima';
+        : 'Donor';
     final String initial = donorName[0].toUpperCase();
 
     return Container(
@@ -1011,18 +1040,22 @@ class _BeneficiaryReservationCard extends StatelessWidget {
                                 ),
                               ),
                               Row(
-                                children: const [
-                                  Icon(
-                                    Icons.star_rounded,
-                                    color: Color(0xFFF59E0B),
+                                children: [
+                                  const Icon(
+                                    Icons.badge_outlined,
+                                    color: AppColors.textSecondary,
                                     size: 12,
                                   ),
-                                  SizedBox(width: 2),
-                                  Text(
-                                    '4.7 · 47 Posts',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.textSecondary,
+                                  const SizedBox(width: 2),
+                                  Flexible(
+                                    child: Text(
+                                      _donorMeta(reservation),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
@@ -1067,14 +1100,15 @@ class _BeneficiaryReservationCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Text(
-                  '8km',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF7FA668),
+                if (distanceText.isNotEmpty)
+                  Text(
+                    distanceText,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF7FA668),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -1095,7 +1129,21 @@ class _BeneficiaryReservationCard extends StatelessWidget {
                   ),
                 ),
 
-              if (isPending) const SizedBox(width: 12),
+              if (isConfirmed && onRoute != null) const SizedBox(width: 12),
+
+              if (isConfirmed && onRoute != null)
+                Expanded(
+                  child: _ActionButton(
+                    label: 'Route',
+                    icon: Icons.alt_route_rounded,
+                    color: AppColors.primarySurface,
+                    textColor: AppColors.primary,
+                    onTap: onRoute!,
+                  ),
+                ),
+
+              if (isPending || (isConfirmed && onRoute != null))
+                const SizedBox(width: 12),
 
               if (isPending)
                 Expanded(
@@ -1180,6 +1228,67 @@ String _timeAgo(String dateStr) {
   } catch (_) {
     return dateStr;
   }
+}
+
+String _personLocation({
+  String? baladiya,
+  String? wilaya,
+  required String fallback,
+}) {
+  final parts = <String>[];
+  if (baladiya != null && baladiya.trim().isNotEmpty) {
+    parts.add(baladiya.trim());
+  }
+  if (wilaya != null &&
+      wilaya.trim().isNotEmpty &&
+      wilaya.trim() != baladiya?.trim()) {
+    parts.add(wilaya.trim());
+  }
+
+  if (parts.isEmpty) return fallback;
+  return parts.join(', ');
+}
+
+String _donorMeta(ReservationModel reservation) {
+  if (reservation.donorBadge != null && reservation.donorBadge != 'NONE') {
+    switch (reservation.donorBadge) {
+      case 'FOOD_DONATOR':
+        return 'Food Donator';
+      case 'BRONZE':
+        return 'Bronze';
+      case 'SILVER':
+        return 'Silver';
+      case 'GOLD':
+        return 'Gold';
+      default:
+        return reservation.donorBadge!;
+    }
+  }
+
+  if (reservation.donorRole != null && reservation.donorRole!.isNotEmpty) {
+    switch (reservation.donorRole) {
+      case 'ASSOCIATION':
+        return 'Association';
+      case 'MAYOR':
+        return 'Mayor';
+      case 'ADMIN':
+        return 'Admin';
+      case 'USER':
+        return _personLocation(
+          baladiya: reservation.donorBaladiya,
+          wilaya: reservation.donorWilaya,
+          fallback: 'User',
+        );
+      default:
+        return reservation.donorRole!;
+    }
+  }
+
+  return _personLocation(
+    baladiya: reservation.donorBaladiya,
+    wilaya: reservation.donorWilaya,
+    fallback: 'Community member',
+  );
 }
 
 // ── Small Tag ──────────────────────────────────────────

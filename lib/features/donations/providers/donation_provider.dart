@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/donation_model.dart';
 import '../data/repositories/donation_repository.dart';
 import '../utils/category_utils.dart';
+import 'package:geolocator/geolocator.dart';
 
 // ── Repository provider ────────────────────────────────
 final donationRepositoryProvider = Provider<DonationRepository>((ref) {
@@ -53,6 +54,7 @@ class DonationsState {
   final bool isDonationReservationsLoading;
   final String? error;
   final DonationFilter filter;
+  final String searchQuery;
 
   const DonationsState({
     this.donations = const [],
@@ -64,6 +66,7 @@ class DonationsState {
     this.isDonationReservationsLoading = false,
     this.error,
     this.filter = const DonationFilter(),
+    this.searchQuery = '',
   });
 
   DonationsState copyWith({
@@ -76,6 +79,7 @@ class DonationsState {
     bool? isDonationReservationsLoading,
     String? error,
     DonationFilter? filter,
+    String? searchQuery,
   }) {
     return DonationsState(
       donations: donations ?? this.donations,
@@ -90,6 +94,7 @@ class DonationsState {
           isDonationReservationsLoading ?? this.isDonationReservationsLoading,
       error: error,
       filter: filter ?? this.filter,
+      searchQuery: searchQuery ?? this.searchQuery,
     );
   }
 
@@ -144,14 +149,78 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
     }
   }
 
+  // ── Search donations ───────────────────────────
+  Future<void> searchDonations({
+    required String query,
+    required double lat,
+    required double lng,
+  }) async {
+    if (query.trim().isEmpty) {
+      state = state.copyWith(searchQuery: '');
+      await fetchNearbyDonations(lat: lat, lng: lng);
+      return;
+    }
+
+    debugPrint('📤 DonationsProvider: Searching for "$query"...');
+    state = state.copyWith(isLoading: true, error: null, searchQuery: query);
+    try {
+      final results = await _repository.searchDonations(query);
+
+      // Calculate distances and sort
+      final processedResults = results.map((d) {
+        if (d.lat != null && d.lng != null) {
+          final distanceMeters = Geolocator.distanceBetween(
+            lat,
+            lng,
+            d.lat!,
+            d.lng!,
+          );
+          return d.copyWith(distanceKm: distanceMeters / 1000.0);
+        }
+        return d;
+      }).toList();
+
+      processedResults.sort(
+        (a, b) => (a.distanceKm ?? double.infinity).compareTo(
+          b.distanceKm ?? double.infinity,
+        ),
+      );
+
+      // Filter out our own donations and by distance
+      final filtered = processedResults
+          .where((d) => !state.myDonations.any((my) => my.id == d.id))
+          .where(
+            (d) => (d.distanceKm ?? double.infinity) <= state.filter.radiusKm,
+          )
+          .toList();
+
+      debugPrint(
+        '✅ DonationsProvider: ${filtered.length} search results nearby',
+      );
+      state = state.copyWith(isLoading: false, donations: filtered);
+    } catch (e) {
+      debugPrint('❌ DonationsProvider: Search error - $e');
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
   // ── Fetch my donations ─────────────────────────
   Future<void> fetchMyDonations() async {
     debugPrint('📤 DonationsProvider: Fetching my donations...');
     state = state.copyWith(isLoading: true, error: null);
     try {
       final myDonations = await _repository.getMyDonations();
+      final filteredNearby = state.donations
+          .where(
+            (donation) => !myDonations.any((mine) => mine.id == donation.id),
+          )
+          .toList();
       debugPrint('✅ DonationsProvider: Got ${myDonations.length} my donations');
-      state = state.copyWith(isLoading: false, myDonations: myDonations);
+      state = state.copyWith(
+        isLoading: false,
+        myDonations: myDonations,
+        donations: filteredNearby,
+      );
     } catch (e) {
       debugPrint('❌ DonationsProvider: My donations error - $e');
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -214,11 +283,14 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
 
   // ── Set filter ─────────────────────────────────
   void setFilter(String? categoryId) {
-    debugPrint('🔍 DonationsProvider: Filter = $categoryId');
+    final normalizedCategoryId = categoryId == 'MY'
+        ? DonationFilter.myDonationsKey
+        : categoryId;
+    debugPrint('🔍 DonationsProvider: Filter = $normalizedCategoryId');
     state = state.copyWith(
       filter: state.filter.copyWith(
-        categoryId: categoryId,
-        clearCategory: categoryId == null,
+        categoryId: normalizedCategoryId,
+        clearCategory: normalizedCategoryId == null,
       ),
     );
   }
@@ -321,7 +393,12 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
         checklistConfirmed: checklistConfirmed,
       );
       debugPrint('✅ DonationsProvider: Created - ${donation.id}');
-      state = state.copyWith(myDonations: [donation, ...state.myDonations]);
+      state = state.copyWith(
+        myDonations: [donation, ...state.myDonations],
+        donations: state.donations
+            .where((item) => item.id != donation.id)
+            .toList(),
+      );
       return true;
     } catch (e) {
       debugPrint('❌ DonationsProvider: Create error - $e');
@@ -425,6 +502,7 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
             createdAt: r.createdAt,
             reservedAt: r.reservedAt,
             confirmedAt: slimResult.confirmedAt ?? r.confirmedAt,
+            donorId: r.donorId,
             beneficiaryId: r.beneficiaryId,
             beneficiaryName: r.beneficiaryName,
             beneficiaryPhoneNumber: r.beneficiaryPhoneNumber,
@@ -432,8 +510,14 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
             beneficiaryWilaya: r.beneficiaryWilaya,
             beneficiaryBaladiya: r.beneficiaryBaladiya,
             beneficiaryAvatarUrl: r.beneficiaryAvatarUrl,
+            beneficiaryBadge: r.beneficiaryBadge,
+            beneficiaryRole: r.beneficiaryRole,
             donorName: r.donorName,
             donorAvatarUrl: r.donorAvatarUrl,
+            donorBadge: r.donorBadge,
+            donorRole: r.donorRole,
+            donorWilaya: r.donorWilaya,
+            donorBaladiya: r.donorBaladiya,
             donationId: r.donationId,
             donationTitle: r.donationTitle,
             donationCategory: r.donationCategory,
@@ -442,6 +526,8 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
             donationMeetingZone: r.donationMeetingZone,
             donationPickupType: r.donationPickupType,
             donationQuantity: r.donationQuantity,
+            donationLat: r.donationLat,
+            donationLng: r.donationLng,
           );
         }).toList(),
       );
@@ -469,6 +555,7 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
             reservedAt: r.reservedAt,
             confirmedAt: r.confirmedAt,
             updatedAt: slimResult.updatedAt ?? r.updatedAt,
+            donorId: r.donorId,
             beneficiaryId: r.beneficiaryId,
             beneficiaryName: r.beneficiaryName,
             beneficiaryPhoneNumber: r.beneficiaryPhoneNumber,
@@ -476,8 +563,14 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
             beneficiaryWilaya: r.beneficiaryWilaya,
             beneficiaryBaladiya: r.beneficiaryBaladiya,
             beneficiaryAvatarUrl: r.beneficiaryAvatarUrl,
+            beneficiaryBadge: r.beneficiaryBadge,
+            beneficiaryRole: r.beneficiaryRole,
             donorName: r.donorName,
             donorAvatarUrl: r.donorAvatarUrl,
+            donorBadge: r.donorBadge,
+            donorRole: r.donorRole,
+            donorWilaya: r.donorWilaya,
+            donorBaladiya: r.donorBaladiya,
             donationId: r.donationId,
             donationTitle: r.donationTitle,
             donationCategory: r.donationCategory,
@@ -486,6 +579,8 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
             donationMeetingZone: r.donationMeetingZone,
             donationPickupType: r.donationPickupType,
             donationQuantity: r.donationQuantity,
+            donationLat: r.donationLat,
+            donationLng: r.donationLng,
           );
         }).toList(),
         // Also update in myReservations (beneficiary view) if present
@@ -498,8 +593,13 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
             reservedAt: r.reservedAt,
             confirmedAt: r.confirmedAt,
             updatedAt: slimResult.updatedAt ?? r.updatedAt,
+            donorId: r.donorId,
             donorName: r.donorName,
             donorAvatarUrl: r.donorAvatarUrl,
+            donorBadge: r.donorBadge,
+            donorRole: r.donorRole,
+            donorWilaya: r.donorWilaya,
+            donorBaladiya: r.donorBaladiya,
             donationId: r.donationId,
             donationTitle: r.donationTitle,
             donationCategory: r.donationCategory,
@@ -508,6 +608,8 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
             donationMeetingZone: r.donationMeetingZone,
             donationPickupType: r.donationPickupType,
             donationQuantity: r.donationQuantity,
+            donationLat: r.donationLat,
+            donationLng: r.donationLng,
           );
         }).toList(),
       );

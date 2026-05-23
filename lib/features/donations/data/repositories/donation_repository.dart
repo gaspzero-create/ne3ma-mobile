@@ -3,6 +3,7 @@ import '../../../../core/network/graphql_client.dart';
 import '../graphql/donation_queries.dart';
 import '../graphql/donation_mutations.dart';
 import '../models/donation_model.dart';
+import '../models/reservation_route_model.dart';
 
 class DonationRepository {
   // ── Get nearby donations ───────────────────────
@@ -210,5 +211,45 @@ class DonationRepository {
     );
     debugPrint('✅ DonationRepo: Reservation completed!');
     return ReservationModel.fromMap(data['completeReservation']);
+  }
+
+  Future<ReservationRouteModel> getRouteForReservation({
+    required String reservationId,
+    required double currentLat,
+    required double currentLng,
+  }) async {
+    debugPrint(
+      '📤 DonationRepo: Fetching route for reservation $reservationId...',
+    );
+    final data = await GraphQLClient.query(
+      document: DonationQueries.getRouteForReservation,
+      variables: {
+        'input': {
+          'reservationId': reservationId,
+          'currentLat': currentLat,
+          'currentLng': currentLng,
+        },
+      },
+    );
+
+    debugPrint('✅ DonationRepo: Route loaded!');
+    return ReservationRouteModel.fromMap(data['getRouteForReservation']);
+  }
+
+  // ── Search donations ───────────────────────────
+  Future<List<DonationModel>> searchDonations(String query) async {
+    debugPrint('📤 DonationRepo: Searching donations with query: $query');
+    final data = await GraphQLClient.query(
+      document: DonationQueries.searchDonations,
+      variables: {
+        'input': {'query': query},
+      },
+    );
+
+    final list = data['searchDonations'] as List?;
+    if (list == null) return [];
+
+    debugPrint('✅ DonationRepo: Found ${list.length} search results');
+    return list.map((e) => DonationModel.fromMap(e)).toList();
   }
 }

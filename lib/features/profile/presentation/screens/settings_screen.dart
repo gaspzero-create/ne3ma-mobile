@@ -82,12 +82,12 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsItem(
               icon: Icons.person_outline_rounded,
               label: loc.editProfile,
-              onTap: () async => context.go('/profile'),
+              onTap: () async => context.push('/profile'),
             ),
             _SettingsItem(
-              icon: Icons.security_outlined,
-              label: loc.security,
-              onTap: () async {},
+              icon: Icons.leaderboard_rounded,
+              label: 'Leaderboard',
+              onTap: () async => context.push('/leaderboard'),
             ),
             _SettingsItem(
               icon: Icons.language_rounded,
@@ -146,6 +146,11 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.flag_outlined,
               label: loc.reportProblem,
               onTap: () async {},
+            ),
+            _SettingsItem(
+              icon: Icons.bug_report_outlined,
+              label: 'Push debug',
+              onTap: () async => context.push('/push-debug'),
             ),
             _SettingsItem(
               icon: Icons.logout_rounded,
@@ -402,7 +407,10 @@ class _SettingsItem extends StatelessWidget {
             padding: const EdgeInsets.only(
               left: AppSizes.md + 22 + AppSizes.md,
             ),
-            child: Divider(height: 1, color: AppColors.border.withOpacity(0.6)),
+            child: Divider(
+              height: 1,
+              color: AppColors.border.withValues(alpha: 0.6),
+            ),
           ),
       ],
     );
@@ -470,7 +478,9 @@ class _LanguageSelectionSheetState
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: AppColors.border.withOpacity(0.3)),
+            bottom: BorderSide(
+              color: AppColors.border.withValues(alpha: 0.3),
+            ),
           ),
         ),
         child: Row(

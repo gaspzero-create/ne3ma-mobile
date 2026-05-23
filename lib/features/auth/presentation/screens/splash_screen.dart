@@ -25,8 +25,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       if (!mounted) return;
 
       final authState = ref.read(authProvider);
-      if (authState.isLoading) {
+      if (authState.isCheckingSession) {
         _navigateAfterDelay();
+        return;
+      }
+
+      if (authState.hasPendingVerification) {
+        final redirectTo = authState.pendingOtpRedirectTo ?? '/lastintro';
+        context.go('/verify-code?redirectTo=$redirectTo');
         return;
       }
 

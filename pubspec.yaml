@@ -52,6 +52,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   shared_preferences: ^2.5.5
+  firebase_core: ^2.32.0
 
 flutter_launcher_icons:
   android: "launcher_icon"

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -8,8 +10,20 @@ import 'package:ne3ma/core/theme/app_theme.dart';
 import 'package:ne3ma/features/auth/providers/auth_provider.dart';
 import 'package:ne3ma/core/providers/locale_provider.dart';
 
-void main() {
+import 'package:ne3ma/core/services/push_notification_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Firebase & Notifications ────────────────────
+  try {
+    await Firebase.initializeApp();
+    await PushNotificationService().init();
+  } catch (e) {
+    debugPrint('Firebase init failed: \$e');
+  }
+
   _configureImageErrorFiltering();
 
   // ── Wake up Render server ──────────────────────
@@ -59,7 +73,26 @@ class MyApp extends ConsumerWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(authProvider);
+    final authState = ref.watch(authProvider);
+
+    ref.listen(authProvider, (previous, next) {
+      final becameAuthenticated =
+          next.isAuthenticated &&
+          next.user != null &&
+          (previous?.isAuthenticated != true ||
+              previous?.user?.id != next.user?.id);
+
+      if (becameAuthenticated) {
+        unawaited(PushNotificationService().syncTokenWithBackend());
+      }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(PushNotificationService().processPendingLaunchNotification());
+      if (authState.isAuthenticated && authState.user != null) {
+        unawaited(PushNotificationService().syncTokenWithBackend());
+      }
+    });
 
     return MaterialApp.router(
       title: "NEJMA",

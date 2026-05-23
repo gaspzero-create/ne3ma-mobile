@@ -1,27 +1,23 @@
 class NotificationQueries {
+  NotificationQueries._();
+
   static const String myNotifications = '''
     query MyNotifications {
       myNotifications {
         id
         title
-        subtitle
-        type
-        imageUrl
+        body
+        data
         createdAt
         isRead
+        type
       }
     }
   ''';
 
   static const String markAsRead = '''
-    mutation MarkNotificationAsRead(\$id: String!) {
+    mutation MarkNotificationAsRead(\$id: ID!) {
       markNotificationAsRead(id: \$id)
-    }
-  ''';
-
-  static const String markAllAsRead = '''
-    mutation MarkAllNotificationsAsRead {
-      markAllNotificationsAsRead
     }
   ''';
 }

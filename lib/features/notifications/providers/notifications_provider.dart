@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ne3ma/features/notifications/data/model/notification_model.dart';
+import 'package:ne3ma/features/notifications/data/repository/notification_repository.dart';
 
-
-// ─── State ───────────────────────────────────────────────────────────────────
+final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  return NotificationRepository();
+});
 
 class NotificationsState {
   final List<NotificationModel> notifications;
@@ -31,61 +33,83 @@ class NotificationsState {
   }
 }
 
-// ─── Notifier ─────────────────────────────────────────────────────────────────
-
 class NotificationsNotifier extends StateNotifier<NotificationsState> {
-  NotificationsNotifier() : super(const NotificationsState());
+  NotificationsNotifier(this._repository) : super(const NotificationsState());
 
-  /// Call this when the screen loads — wire to your GraphQL client later
-  Future<void> fetchNotifications() async {
-    state = state.copyWith(isLoading: true, error: null);
+  final NotificationRepository _repository;
+
+  Future<void> fetchNotifications({bool background = false}) async {
+    if (!background) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
+
     try {
-      // TODO: replace with real GraphQL call
-      // final result = await graphqlClient.query(NotificationQueries.myNotifications);
-      // final list = (result['myNotifications'] as List)
-      //     .map((e) => NotificationModel.fromJson(e))
-      //     .toList();
-
-      // Mock data — remove once backend is ready
-      await Future.delayed(const Duration(milliseconds: 600));
-      final list = <NotificationModel>[];
-
-      state = state.copyWith(notifications: list, isLoading: false);
+      final list = await _repository.getMyNotifications();
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      state = state.copyWith(
+        notifications: list,
+        isLoading: false,
+        error: null,
+      );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        error: background ? state.error : e.toString(),
+      );
     }
   }
 
   Future<void> markAsRead(String id) async {
-    // Optimistic update
-    final updated = state.notifications.map((n) {
-      return n.id == id ? n.copyWith(isRead: true) : n;
-    }).toList();
-    state = state.copyWith(notifications: updated);
-
-    // TODO: GraphQL mutation
-    // await graphqlClient.mutate(NotificationQueries.markAsRead, {'id': id});
-  }
-
-  Future<void> markAllAsRead() async {
-    final updated = state.notifications
-        .map((n) => n.copyWith(isRead: true))
+    final existing = state.notifications;
+    final updated = existing
+        .map((n) => n.id == id ? n.copyWith(isRead: true) : n)
         .toList();
     state = state.copyWith(notifications: updated);
 
-    // TODO: GraphQL mutation
-    // await graphqlClient.mutate(NotificationQueries.markAllAsRead);
+    try {
+      final success = await _repository.markNotificationAsRead(id);
+      if (!success) {
+        state = state.copyWith(notifications: existing);
+      }
+    } catch (e) {
+      state = state.copyWith(
+        notifications: existing,
+        error: e.toString(),
+      );
+    }
+  }
+
+  Future<void> markAllAsRead() async {
+    final unreadIds = state.notifications
+        .where((n) => !n.isRead)
+        .map((n) => n.id)
+        .toList();
+
+    if (unreadIds.isEmpty) return;
+
+    final previous = state.notifications;
+    state = state.copyWith(
+      notifications: previous.map((n) => n.copyWith(isRead: true)).toList(),
+    );
+
+    try {
+      for (final id in unreadIds) {
+        await _repository.markNotificationAsRead(id);
+      }
+    } catch (e) {
+      state = state.copyWith(
+        notifications: previous,
+        error: e.toString(),
+      );
+    }
   }
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-
 final notificationsProvider =
-    StateNotifierProvider<NotificationsNotifier, NotificationsState>(
-  (ref) => NotificationsNotifier(),
-);
+    StateNotifierProvider<NotificationsNotifier, NotificationsState>((ref) {
+      return NotificationsNotifier(ref.read(notificationRepositoryProvider));
+    });
 
-/// Convenience: just the unread count for the badge
 final unreadNotificationsCountProvider = Provider<int>((ref) {
   return ref.watch(notificationsProvider).unreadCount;
 });

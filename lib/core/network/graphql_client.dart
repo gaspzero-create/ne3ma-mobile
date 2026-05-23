@@ -5,8 +5,15 @@ class GraphQLClient {
   GraphQLClient._();
 
   static const String _baseUrl =
-      'https://ne3ma-backend-production-0f70.up.railway.app/graphql';
+      'https://ne3ma-backend-production-d671.up.railway.app/graphql';
   static const _storage = FlutterSecureStorage();
+
+  static String get graphqlUrl => _baseUrl;
+
+  static String get backendBaseUrl {
+    final uri = Uri.parse(_baseUrl);
+    return '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+  }
 
   static Dio get dio {
     final dio = Dio(

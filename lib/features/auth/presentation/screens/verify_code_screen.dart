@@ -34,8 +34,12 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
 
   @override
   void dispose() {
-    for (var c in _codeControllers) c.dispose();
-    for (var n in _focusNodes) n.dispose();
+    for (var c in _codeControllers) {
+      c.dispose();
+    }
+    for (var n in _focusNodes) {
+      n.dispose();
+    }
     super.dispose();
   }
 
@@ -88,7 +92,7 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
 
       if (otpType == 'email') {
         // ── Verify Email OTP ─────────────────────
-        final email = ref.read(otpEmailProvider);
+        final email = _resolvedEmail;
         debugPrint('📧 VerifyCode: Email = $email');
 
         success = await ref
@@ -97,7 +101,7 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
         debugPrint('📬 VerifyCode: verifyEmailOtp result = $success');
       } else {
         // ── Verify Phone OTP ─────────────────────
-        final phone = ref.read(otpPhoneProvider);
+        final phone = _resolvedPhone;
         debugPrint('📱 VerifyCode: Phone = $phone');
 
         success = await ref
@@ -138,11 +142,11 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
 
     try {
       if (otpType == 'email') {
-        final email = ref.read(otpEmailProvider);
+        final email = _resolvedEmail;
         await ref.read(authProvider.notifier).sendEmailOtp(email: email);
         debugPrint('✅ VerifyCode: Email OTP resent');
       } else {
-        final phone = ref.read(otpPhoneProvider);
+        final phone = _resolvedPhone;
         await ref.read(authProvider.notifier).sendPhoneOtp(phoneNumber: phone);
         debugPrint('✅ VerifyCode: Phone OTP resent');
       }
@@ -169,9 +173,19 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final otpType = ref.watch(otpTypeProvider);
-    final email = ref.watch(otpEmailProvider);
-    final phone = ref.watch(otpPhoneProvider);
+    final authState = ref.watch(authProvider);
+    final otpType =
+        ref.watch(otpTypeProvider).isNotEmpty
+            ? ref.watch(otpTypeProvider)
+            : (authState.pendingOtpType ?? 'email');
+    final email =
+        ref.watch(otpEmailProvider).isNotEmpty
+            ? ref.watch(otpEmailProvider)
+            : (authState.pendingOtpEmail ?? '');
+    final phone =
+        ref.watch(otpPhoneProvider).isNotEmpty
+            ? ref.watch(otpPhoneProvider)
+            : (authState.pendingOtpPhone ?? '');
     final loc = AppLocalizations.of(context);
 
     // Responsive sizing for code input fields
@@ -190,7 +204,7 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               IconButton(
-                onPressed: () => context.go('/forgot-password'),
+                onPressed: () => context.go('/signup'),
                 icon: const Icon(Icons.arrow_back_ios_new_outlined),
               ),
               const SizedBox(height: 32),
@@ -317,5 +331,17 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
         ),
       ),
     );
+  }
+
+  String get _resolvedEmail {
+    final email = ref.read(otpEmailProvider);
+    if (email.isNotEmpty) return email;
+    return ref.read(authProvider).pendingOtpEmail ?? '';
+  }
+
+  String get _resolvedPhone {
+    final phone = ref.read(otpPhoneProvider);
+    if (phone.isNotEmpty) return phone;
+    return ref.read(authProvider).pendingOtpPhone ?? '';
   }
 }

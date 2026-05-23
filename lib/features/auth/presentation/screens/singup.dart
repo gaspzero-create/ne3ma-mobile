@@ -91,10 +91,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       debugPrint('✅ SignUp: Registration successful! Sending to verify...');
 
       // ── Save email for verify-code screen ──────────
-      ref.read(otpEmailProvider.notifier).state = _emailController.text.trim();
+      final email = _emailController.text.trim();
+      ref.read(otpEmailProvider.notifier).state = email;
       ref.read(otpTypeProvider.notifier).state = 'email';
+      await ref
+          .read(authProvider.notifier)
+          .persistPendingEmailVerification(email: email);
 
-      context.go('/verify-code', extra: '/lastintro'); // ← was '/lastintro'
+      if (!mounted) return;
+      context.go('/verify-code?redirectTo=/lastintro');
     } else {
       final error = ref.read(authProvider).error;
       debugPrint('❌ SignUp Error: $error');

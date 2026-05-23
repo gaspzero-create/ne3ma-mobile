@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:ne3ma/features/auth/providers/auth_provider.dart';
+import 'package:ne3ma/core/network/graphql_client.dart';
 import 'package:ne3ma/features/chat/services/chat_socket_service.dart';
 import 'package:ne3ma/features/donations/providers/donation_provider.dart';
 
@@ -36,8 +37,6 @@ class MessagesBadgeState {
 }
 
 class MessagesBadgeNotifier extends StateNotifier<MessagesBadgeState> {
-  static const _chatBackendUrl =
-      'https://ne3ma-backend-production-0f70.up.railway.app';
   final Ref _ref;
   final _storage = const FlutterSecureStorage();
   final ChatSocketService _socket = ChatSocketService.detached();
@@ -172,7 +171,7 @@ class MessagesBadgeNotifier extends StateNotifier<MessagesBadgeState> {
       return;
     }
 
-    _socket.connect(baseUrl: _chatBackendUrl, token: token);
+    _socket.connect(baseUrl: GraphQLClient.backendBaseUrl, token: token);
   }
 
   void _joinTrackedRooms() {
