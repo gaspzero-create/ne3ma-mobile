@@ -60,10 +60,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         ref.read(otpTypeProvider.notifier).state  = 'email';
         debugPrint('💾 ForgotPassword: Email saved in provider = $email');
 
-        success = await ref.read(authProvider.notifier).sendEmailOtp(
+        success = await ref.read(authProvider.notifier).requestPasswordReset(
           email: email,
         );
-        debugPrint('📬 ForgotPassword: sendEmailOtp result = $success');
+        debugPrint('📬 ForgotPassword: requestPasswordReset result = $success');
 
       } else {
         // ── Phone OTP ─────────────────────────────
@@ -84,7 +84,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
       if (success) {
         debugPrint('✅ ForgotPassword: OTP sent! Navigating to /verify-code');
-       context.go('/verify-code', extra: '/home');
+        final redirect = _selectedOption == 'email' ? '/reset-password' : '/home';
+        context.go('/verify-code?redirectTo=$redirect');
       } else {
         final error = ref.read(authProvider).error;
         debugPrint('❌ ForgotPassword: Failed - $error');

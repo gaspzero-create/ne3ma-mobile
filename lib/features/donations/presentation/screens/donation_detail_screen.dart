@@ -25,10 +25,12 @@ class DonationDetailScreen extends ConsumerStatefulWidget {
 
 class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
   bool _isReserving = false;
+  late int _reserveQuantity;
 
   @override
   void initState() {
     super.initState();
+    _reserveQuantity = 1;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final location = ref.read(locationProvider);
       if (!location.hasLocation) {
@@ -57,13 +59,21 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
 
     final success = await ref
         .read(donationsProvider.notifier)
-        .reserveDonation(widget.donation.id);
+        .reserveDonation(widget.donation.id, quantity: _reserveQuantity);
 
     if (!mounted) return;
     setState(() => _isReserving = false);
 
     if (success) {
       debugPrint('✅ DonationDetail: Reserved!');
+      final location = ref.read(locationProvider);
+      if (location.hasLocation) {
+        await ref.read(donationsProvider.notifier).fetchNearbyDonations(
+              lat: location.lat!,
+              lng: location.lng!,
+              background: true,
+            );
+      }
       _showSuccessDialog();
     } else {
       debugPrint('❌ DonationDetail: Reservation failed');
@@ -528,8 +538,43 @@ class _DonationDetailScreenState extends ConsumerState<DonationDetailScreen> {
         // ── Quantity ──────────────────────────
         _InfoRow(
           label: 'Quantity Available :',
-          value: donation.quantity,
+          value: donation.availableQuantityLabel,
         ),
+        if (donation.quantityAvailable > 1) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Text(
+                'Reserve quantity:',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: _reserveQuantity > 1
+                    ? () => setState(() => _reserveQuantity--)
+                    : null,
+                icon: const Icon(Icons.remove_circle_outline),
+              ),
+              Text(
+                '$_reserveQuantity',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              IconButton(
+                onPressed: _reserveQuantity < donation.quantityAvailable
+                    ? () => setState(() => _reserveQuantity++)
+                    : null,
+                icon: const Icon(Icons.add_circle_outline),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 6),
 
         // ── Pickup type ───────────────────────

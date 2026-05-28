@@ -7,6 +7,7 @@ class GraphQLClient {
   static const String _baseUrl =
       'https://ne3ma-backend-production-d671.up.railway.app/graphql';
   static const _storage = FlutterSecureStorage();
+  static Dio? _dio;
 
   static String get graphqlUrl => _baseUrl;
 
@@ -16,18 +17,20 @@ class GraphQLClient {
   }
 
   static Dio get dio {
+    if (_dio != null) {
+      return _dio!;
+    }
+
     final dio = Dio(
       BaseOptions(
         baseUrl: _baseUrl,
         connectTimeout: const Duration(seconds: 30),
         sendTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 300),
-
         headers: {'Content-Type': 'application/json'},
       ),
     );
 
-    // ── Request interceptor: attach token ──────────
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -38,11 +41,9 @@ class GraphQLClient {
           handler.next(options);
         },
         onError: (error, handler) async {
-          // 401 → try refresh token
           if (error.response?.statusCode == 401) {
             final refreshed = await _tryRefreshToken(dio);
             if (refreshed) {
-              // Retry original request
               final opts = error.requestOptions;
               final token = await _storage.read(key: 'access_token');
               opts.headers['Authorization'] = 'Bearer $token';
@@ -55,6 +56,7 @@ class GraphQLClient {
       ),
     );
 
+    _dio = dio;
     return dio;
   }
 

@@ -6,35 +6,23 @@ class BottomNavBar extends StatelessWidget {
   const BottomNavBar({
     super.key,
     required this.currentIndex,
+    required this.onTabSelected,
     this.hasUnreadMessages = false,
     this.pendingReservationsCount = 0,
     this.onMessagesTap,
   });
 
   final int currentIndex;
+  final ValueChanged<int> onTabSelected;
   final bool hasUnreadMessages;
   final int pendingReservationsCount;
   final VoidCallback? onMessagesTap;
 
   void _onTap(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/home');
-        break;
-      case 1:
-        if (onMessagesTap != null) onMessagesTap!();
-        context.go('/messages');
-        break;
-      case 2:
-        context.go('/add');
-        break;
-      case 3:
-        context.go('/special');
-        break;
-      case 4:
-        context.go('/profile-tab');
-        break;
+    if (index == 1 && onMessagesTap != null) {
+      onMessagesTap!();
     }
+    onTabSelected(index);
   }
 
   @override

@@ -28,10 +28,11 @@ class DonationMutations {
 
   // ── Reserve donation ───────────────────────────
   static const String reserveDonation = '''
-    mutation ReserveDonation(\$donationId: ID!) {
-      reserveDonation(donationId: \$donationId) {
+    mutation ReserveDonation(\$donationId: ID!, \$quantity: Int) {
+      reserveDonation(donationId: \$donationId, quantity: \$quantity) {
         id
         status
+        quantityReserved
         createdAt
         confirmedAt
       }

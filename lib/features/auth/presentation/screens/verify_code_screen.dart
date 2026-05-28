@@ -88,6 +88,14 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
       final otpType = ref.read(otpTypeProvider);
       debugPrint('📋 VerifyCode: Type = $otpType');
 
+      if (widget.redirectTo == '/reset-password' && otpType == 'email') {
+        ref.read(passwordResetOtpProvider.notifier).state = code;
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        context.go('/reset-password');
+        return;
+      }
+
       bool success = false;
 
       if (otpType == 'email') {
@@ -143,7 +151,11 @@ class _VerifyCodeScreenState extends ConsumerState<VerifyCodeScreen> {
     try {
       if (otpType == 'email') {
         final email = _resolvedEmail;
-        await ref.read(authProvider.notifier).sendEmailOtp(email: email);
+        if (widget.redirectTo == '/reset-password') {
+          await ref.read(authProvider.notifier).requestPasswordReset(email: email);
+        } else {
+          await ref.read(authProvider.notifier).sendEmailOtp(email: email);
+        }
         debugPrint('✅ VerifyCode: Email OTP resent');
       } else {
         final phone = _resolvedPhone;

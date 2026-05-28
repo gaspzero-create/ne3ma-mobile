@@ -128,9 +128,17 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
   Future<void> fetchNearbyDonations({
     required double lat,
     required double lng,
+    bool background = false,
   }) async {
+    final hasCachedList = state.donations.isNotEmpty;
+    if (!background && hasCachedList) {
+      background = true;
+    }
+
     debugPrint('📤 DonationsProvider: Fetching nearby...');
-    state = state.copyWith(isLoading: true, error: null);
+    if (!background) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final donations = await _repository.getNearbyDonations(
         lat: lat,
@@ -154,15 +162,20 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
     required String query,
     required double lat,
     required double lng,
+    bool background = false,
   }) async {
     if (query.trim().isEmpty) {
       state = state.copyWith(searchQuery: '');
-      await fetchNearbyDonations(lat: lat, lng: lng);
+      await fetchNearbyDonations(lat: lat, lng: lng, background: background);
       return;
     }
 
     debugPrint('📤 DonationsProvider: Searching for "$query"...');
-    state = state.copyWith(isLoading: true, error: null, searchQuery: query);
+    if (!background) {
+      state = state.copyWith(isLoading: true, error: null, searchQuery: query);
+    } else {
+      state = state.copyWith(error: null, searchQuery: query);
+    }
     try {
       final results = await _repository.searchDonations(query);
 
@@ -205,9 +218,16 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
   }
 
   // ── Fetch my donations ─────────────────────────
-  Future<void> fetchMyDonations() async {
+  Future<void> fetchMyDonations({bool background = false}) async {
+    final hasCachedList = state.myDonations.isNotEmpty;
+    if (!background && hasCachedList) {
+      background = true;
+    }
+
     debugPrint('📤 DonationsProvider: Fetching my donations...');
-    state = state.copyWith(isLoading: true, error: null);
+    if (!background) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final myDonations = await _repository.getMyDonations();
       final filteredNearby = state.donations
@@ -296,43 +316,11 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
   }
 
   // ── Reserve donation ───────────────────────────
-  Future<bool> reserveDonation(String donationId) async {
+  Future<bool> reserveDonation(String donationId, {int quantity = 1}) async {
     debugPrint('📤 DonationsProvider: Reserving $donationId...');
     try {
-      await _repository.reserveDonation(donationId);
+      await _repository.reserveDonation(donationId, quantity: quantity);
       debugPrint('✅ DonationsProvider: Reserved!');
-      state = state.copyWith(
-        donations: state.donations.map((d) {
-          if (d.id == donationId) {
-            return DonationModel.fromMap({
-              'id': d.id,
-              'title': d.title,
-              'description': d.description,
-              'donor': {
-                'id': d.donorId,
-                'fullName': d.donorName,
-                'avatarUrl': d.donorAvatarUrl,
-                'badge': d.donorBadge,
-                'role': d.donorRole,
-                'wilaya': d.donorWilaya,
-                'baladiya': d.donorBaladiya,
-              },
-              'category': {'id': d.categoryId, 'name': d.category},
-              'status': 'RESERVED',
-              'pickupType': d.pickupType,
-              'quantity': d.quantity,
-              'expiresAt': d.expiresAt,
-              'imageUrl': d.imageUrl,
-              'lat': d.lat,
-              'lng': d.lng,
-              'meetingZone': d.meetingZone,
-              'distanceKm': d.distanceKm,
-              'createdAt': d.createdAt,
-            });
-          }
-          return d;
-        }).toList(),
-      );
       return true;
     } catch (e) {
       debugPrint('❌ DonationsProvider: Reserve error - $e');

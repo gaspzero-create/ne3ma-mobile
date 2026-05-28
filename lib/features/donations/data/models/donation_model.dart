@@ -9,6 +9,8 @@ class DonationModel {
   final String status; // AVAILABLE | RESERVED | CONFIRMED | COMPLETED | EXPIRED
   final String pickupType; // PICKUP | DROP
   final String quantity;
+  final int quantityAvailable;
+  final int quantityTotal;
   final String? donorId;
   final String? donorName;
   final String? donorAvatarUrl;
@@ -35,6 +37,8 @@ class DonationModel {
     required this.status,
     required this.pickupType,
     required this.quantity,
+    this.quantityAvailable = 1,
+    this.quantityTotal = 1,
     this.donorId,
     this.donorName,
     this.donorAvatarUrl,
@@ -68,6 +72,8 @@ class DonationModel {
       status: map['status'] ?? 'AVAILABLE',
       pickupType: map['pickupType'] ?? 'PICKUP',
       quantity: map['quantity'] ?? '',
+      quantityAvailable: (map['quantityAvailable'] as num?)?.toInt() ?? 1,
+      quantityTotal: (map['quantityTotal'] as num?)?.toInt() ?? 1,
       donorId: donor?['id'],
       donorName: donor?['fullName'] ?? donor?['name'],
       donorAvatarUrl: donor?['avatarUrl'],
@@ -96,6 +102,8 @@ class DonationModel {
     String? status,
     String? pickupType,
     String? quantity,
+    int? quantityAvailable,
+    int? quantityTotal,
     String? donorId,
     String? donorName,
     String? donorAvatarUrl,
@@ -122,6 +130,8 @@ class DonationModel {
       status: status ?? this.status,
       pickupType: pickupType ?? this.pickupType,
       quantity: quantity ?? this.quantity,
+      quantityAvailable: quantityAvailable ?? this.quantityAvailable,
+      quantityTotal: quantityTotal ?? this.quantityTotal,
       donorId: donorId ?? this.donorId,
       donorName: donorName ?? this.donorName,
       donorAvatarUrl: donorAvatarUrl ?? this.donorAvatarUrl,
@@ -142,7 +152,10 @@ class DonationModel {
   }
 
   // ── Helpers ────────────────────────────────────
-  bool get isAvailable => status == 'AVAILABLE';
+  bool get isAvailable => status == 'AVAILABLE' && quantityAvailable > 0;
+
+  String get availableQuantityLabel =>
+      '$quantityAvailable / $quantityTotal available ($quantity)';
   bool get isUrgent => isUrgentCategory(category);
   bool get isFresh => isFreshCategory(category);
   bool get isDry => isDryCategory(category);

@@ -52,6 +52,8 @@ class DonationQueries {
         status
         pickupType
         quantity
+        quantityAvailable
+        quantityTotal
         expiresAt
         imageUrl
         lat
@@ -89,6 +91,8 @@ class DonationQueries {
         status
         pickupType
         quantity
+        quantityAvailable
+        quantityTotal
         expiresAt
         imageUrl
         lat
@@ -126,6 +130,8 @@ class DonationQueries {
         status
         pickupType
         quantity
+        quantityAvailable
+        quantityTotal
         expiresAt
         imageUrl
         lat
@@ -236,6 +242,8 @@ class DonationQueries {
         status
         pickupType
         quantity
+        quantityAvailable
+        quantityTotal
         expiresAt
         imageUrl
         lat

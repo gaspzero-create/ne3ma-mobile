@@ -241,6 +241,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   // ── Send Email OTP ───────────────────────────────
+  Future<bool> requestPasswordReset({required String email}) async {
+    try {
+      await _repository.requestPasswordReset(email: email);
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      final payload = await _repository.resetPassword(
+        email: email,
+        otp: otp,
+        newPassword: newPassword,
+      );
+      state = state.copyWith(user: payload.user, isAuthenticated: true);
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
   Future<bool> sendEmailOtp({required String email}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -408,3 +437,4 @@ final isAuthenticatedProvider = Provider<bool>((ref) {
 final otpEmailProvider = StateProvider<String>((ref) => '');
 final otpPhoneProvider = StateProvider<String>((ref) => '');
 final otpTypeProvider  = StateProvider<String>((ref) => 'email');
+final passwordResetOtpProvider = StateProvider<String>((ref) => '');

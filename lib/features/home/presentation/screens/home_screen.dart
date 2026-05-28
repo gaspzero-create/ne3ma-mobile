@@ -8,8 +8,9 @@ import '../../../donations/providers/donation_provider.dart';
 import '../../../notifications/providers/notifications_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key, required this.child});
-  final Widget child;
+  const HomeScreen({super.key, required this.navigationShell});
+
+  final StatefulNavigationShell navigationShell;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -17,27 +18,19 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   Timer? _pollingTimer;
-  int _getCurrentIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/home')) return 0;
-    if (location.startsWith('/messages')) return 1;
-    if (location.startsWith('/add')) return 2;
-    if (location.startsWith('/special')) return 3;
-    if (location.startsWith('/profile-tab')) return 4;
-    return 0;
-  }
+  bool _bootstrapped = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Fetch reservations globally so the nav bar badges are populated immediately
+      if (_bootstrapped) return;
+      _bootstrapped = true;
       ref.read(donationsProvider.notifier).fetchMyReservations();
       ref.read(donationsProvider.notifier).fetchMyDonationReservations();
       ref.read(notificationsProvider.notifier).fetchNotifications();
     });
 
-    // Background poll every 30s to keep badges updated (lightweight, no spinners)
     _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       ref
           .read(donationsProvider.notifier)
@@ -57,29 +50,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
+  void _onTabSelected(int index) {
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Read the donations state to calculate badges
     final state = ref.watch(donationsProvider);
-
-    // Calculate pending reservations count (for donors: reservations on their donations that are waiting to be confirmed/declined)
-    // Assuming status is 'PENDING' for unconfirmed reservations
     final pendingCount = state.myDonationReservations
         .where((r) => r.status == 'PENDING')
         .length;
-
-    // Use the messages badge provider which tracks if there are new unread messages
-    // since the tab was last opened.
     final hasActiveChats = ref.watch(
-      messagesBadgeProvider.select((state) => state.hasUnread),
+      messagesBadgeProvider.select((s) => s.hasUnread),
     );
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: widget.child,
+      body: widget.navigationShell,
       extendBody: true,
       bottomNavigationBar: BottomNavBar(
-        currentIndex: _getCurrentIndex(context),
+        currentIndex: widget.navigationShell.currentIndex,
+        onTabSelected: _onTabSelected,
         hasUnreadMessages: hasActiveChats,
         pendingReservationsCount: pendingCount,
         onMessagesTap: () {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ne3ma/features/auth/presentation/screens/forgot_password.dart';
+import 'package:ne3ma/features/auth/presentation/screens/reset_password_screen.dart';
 import 'package:ne3ma/features/auth/presentation/screens/verify_code_screen.dart';
 import 'package:ne3ma/features/auth/presentation/screens/intro.dart';
 import 'package:ne3ma/features/auth/presentation/screens/lastIntro.dart';
@@ -38,6 +39,7 @@ class AppRouter {
   static const String signin = '/signin';
   static const String forgotPassword = '/forgot-password';
   static const String verifyCode = '/verify-code';
+  static const String resetPassword = '/reset-password';
   static const String lastintro = '/lastintro';
   static const String login = '/login';
   static const String settings = '/settings';
@@ -101,6 +103,14 @@ class AppRouter {
       ),
 
       GoRoute(
+        path: resetPassword,
+        pageBuilder: (context, state) => _slideRightPage(
+          state: state,
+          child: const ResetPasswordScreen(),
+        ),
+      ),
+
+      GoRoute(
         path: settings,
         pageBuilder: (context, state) =>
             _slideUpPage(state: state, child: const SettingsScreen()),
@@ -155,33 +165,50 @@ class AppRouter {
             _slideRightPage(state: state, child: const HelpAndSupportScreen()),
       ),
 
-      ShellRoute(
-        builder: (context, state, child) => HomeScreen(child: child),
-        routes: [
-          GoRoute(
-            path: '/home',
-            pageBuilder: (context, state) =>
-                _fadePage(state: state, child: const HomeTab()),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return HomeScreen(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const HomeTab(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/messages',
-            pageBuilder: (context, state) =>
-                _fadePage(state: state, child: const MessagesTab()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/messages',
+                builder: (context, state) => const MessagesTab(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/add',
-            pageBuilder: (context, state) =>
-                _slideRightPage(state: state, child: const AddDonationScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/add',
+                builder: (context, state) => const AddDonationScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/special',
-            pageBuilder: (context, state) =>
-                _fadePage(state: state, child: const SpecialTab()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/special',
+                builder: (context, state) => const SpecialTab(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/profile-tab',
-            pageBuilder: (context, state) =>
-                _fadePage(state: state, child: const SettingsScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile-tab',
+                builder: (context, state) => const SettingsScreen(),
+              ),
+            ],
           ),
         ],
       ),

@@ -24,9 +24,15 @@ class _SpecialTabState extends ConsumerState<SpecialTab>
     super.initState();
     _tabController = TabController(length: 2, vsync: this, initialIndex: 1);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // ── Fetch both on open ─────────────────────
-      ref.read(donationsProvider.notifier).fetchMyReservations();
-      ref.read(donationsProvider.notifier).fetchMyDonationReservations();
+      final state = ref.read(donationsProvider);
+      final background = state.myReservations.isNotEmpty ||
+          state.myDonationReservations.isNotEmpty;
+      ref
+          .read(donationsProvider.notifier)
+          .fetchMyReservations(background: background);
+      ref
+          .read(donationsProvider.notifier)
+          .fetchMyDonationReservations(background: background);
     });
   }
 
@@ -123,7 +129,8 @@ class _MyDonationsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(donationsProvider);
 
-    if (state.isDonationReservationsLoading) {
+    if (state.isDonationReservationsLoading &&
+        state.myDonationReservations.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primaryMid),
       );
@@ -379,7 +386,7 @@ class _MyReservedTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(donationsProvider);
 
-    if (state.isReservationsLoading) {
+    if (state.isReservationsLoading && state.myReservations.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primaryMid),
       );

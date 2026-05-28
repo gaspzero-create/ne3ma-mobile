@@ -112,11 +112,14 @@ class DonationRepository {
   }
 
   // ── Reserve donation ───────────────────────────
-  Future<ReservationModel> reserveDonation(String donationId) async {
+  Future<ReservationModel> reserveDonation(
+    String donationId, {
+    int quantity = 1,
+  }) async {
     debugPrint('📤 DonationRepo: Reserving donation $donationId...');
     final data = await GraphQLClient.query(
       document: DonationMutations.reserveDonation,
-      variables: {'donationId': donationId},
+      variables: {'donationId': donationId, 'quantity': quantity},
     );
     debugPrint('✅ DonationRepo: Reservation created!');
     return ReservationModel.fromMap(data['reserveDonation']);

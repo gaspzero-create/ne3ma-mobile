@@ -92,4 +92,26 @@ static const String sendEmailOtp = '''
       }
     }
   ''';
+
+  static const String requestPasswordReset = '''
+    mutation RequestPasswordReset(\$input: EmailOtpInput!) {
+      requestPasswordReset(input: \$input)
+    }
+  ''';
+
+  static const String resetPassword = '''
+    mutation ResetPassword(\$input: ResetPasswordInput!) {
+      resetPassword(input: \$input) {
+        accessToken
+        refreshToken
+        user {
+          id
+          fullName
+          email
+          role
+          status
+        }
+      }
+    }
+  ''';
 }

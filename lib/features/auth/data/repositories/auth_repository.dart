@@ -121,13 +121,42 @@ Future<AuthPayload> register({
   return payload;
 }
 
-// Add this method
-Future<UserModel> getMe() async {
-  debugPrint('📤 AuthRepo: Fetching current user...');
-  final data = await GraphQLClient.query(
-    document: AuthQueries.me,
-  );
-  debugPrint('✅ AuthRepo: Got current user');
-  return UserModel.fromMap(data['me']);
-}
+  Future<void> requestPasswordReset({required String email}) async {
+    await GraphQLClient.query(
+      document: AuthMutations.requestPasswordReset,
+      variables: {'input': {'email': email}},
+    );
+  }
+
+  Future<AuthPayload> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    final data = await GraphQLClient.query(
+      document: AuthMutations.resetPassword,
+      variables: {
+        'input': {
+          'email': email,
+          'otp': otp,
+          'newPassword': newPassword,
+        },
+      },
+    );
+    final payload = AuthPayload.fromMap(data['resetPassword']);
+    await GraphQLClient.saveTokens(
+      accessToken: payload.accessToken,
+      refreshToken: payload.refreshToken,
+    );
+    return payload;
+  }
+
+  Future<UserModel> getMe() async {
+    debugPrint('📤 AuthRepo: Fetching current user...');
+    final data = await GraphQLClient.query(
+      document: AuthQueries.me,
+    );
+    debugPrint('✅ AuthRepo: Got current user');
+    return UserModel.fromMap(data['me']);
+  }
 }

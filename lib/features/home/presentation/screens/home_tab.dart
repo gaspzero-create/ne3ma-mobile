@@ -41,15 +41,44 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(locationProvider.notifier).fetchLocation();
-      if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDonationsIfNeeded());
+  }
 
-      final loc = ref.read(locationProvider);
-      await _syncLocationHeader(loc);
-      await ref.read(donationsProvider.notifier).fetchMyDonations();
-      _fetchDonations(lat: loc.safeLat, lng: loc.safeLng);
-    });
+  Future<void> _loadDonationsIfNeeded({bool force = false}) async {
+    final donationsState = ref.read(donationsProvider);
+    final hasCachedData =
+        donationsState.donations.isNotEmpty ||
+        donationsState.myDonations.isNotEmpty;
+    final background = !force && hasCachedData;
+
+    if (!ref.read(locationProvider).hasLocation) {
+      await ref.read(locationProvider.notifier).fetchLocation();
+    }
+    if (!mounted) return;
+
+    final loc = ref.read(locationProvider);
+    await _syncLocationHeader(loc);
+
+    await ref
+        .read(donationsProvider.notifier)
+        .fetchMyDonations(background: background);
+    if (!mounted) return;
+
+    final query = _searchController.text.trim();
+    if (query.isNotEmpty) {
+      await ref.read(donationsProvider.notifier).searchDonations(
+            query: query,
+            lat: loc.safeLat,
+            lng: loc.safeLng,
+            background: background,
+          );
+    } else {
+      await ref.read(donationsProvider.notifier).fetchNearbyDonations(
+            lat: loc.safeLat,
+            lng: loc.safeLng,
+            background: background,
+          );
+    }
   }
 
   @override
@@ -115,25 +144,30 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     }
   }
 
-  void _fetchDonations({required double lat, required double lng}) {
+  void _fetchDonations({
+    required double lat,
+    required double lng,
+    bool background = false,
+  }) {
     final query = _searchController.text.trim();
     if (query.isNotEmpty) {
-      ref
-          .read(donationsProvider.notifier)
-          .searchDonations(query: query, lat: lat, lng: lng);
+      ref.read(donationsProvider.notifier).searchDonations(
+            query: query,
+            lat: lat,
+            lng: lng,
+            background: background,
+          );
     } else {
-      ref
-          .read(donationsProvider.notifier)
-          .fetchNearbyDonations(lat: lat, lng: lng);
+      ref.read(donationsProvider.notifier).fetchNearbyDonations(
+            lat: lat,
+            lng: lng,
+            background: background,
+          );
     }
   }
 
   Future<void> _onRefresh() async {
-    await ref.read(locationProvider.notifier).fetchLocation();
-    final loc = ref.read(locationProvider);
-    await _syncLocationHeader(loc);
-    await ref.read(donationsProvider.notifier).fetchMyDonations();
-    _fetchDonations(lat: loc.safeLat, lng: loc.safeLng);
+    await _loadDonationsIfNeeded(force: true);
   }
 
   @override
@@ -335,9 +369,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         return GestureDetector(
                           onTap: () {
                             if (option == DonationFilter.myDonationsKey) {
-                              ref
-                                  .read(donationsProvider.notifier)
-                                  .fetchMyDonations();
+                              final cached = ref.read(donationsProvider);
+                              ref.read(donationsProvider.notifier).fetchMyDonations(
+                                    background: cached.myDonations.isNotEmpty,
+                                  );
                               ref
                                   .read(donationsProvider.notifier)
                                   .setFilter(DonationFilter.myDonationsKey);
@@ -397,7 +432,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   ],
                 ),
               ),
-              if (donationsState.isLoading)
+              if (donationsState.isLoading && displayed.isEmpty)
                 const SliverFillRemaining(
                   child: Center(
                     child: CircularProgressIndicator(
