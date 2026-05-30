@@ -13,14 +13,168 @@ import 'package:ne3ma/features/notifications/providers/notifications_provider.da
 import 'package:ne3ma/features/profile/data/repository/profile_repository.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+const String _androidNotificationChannelId = 'ne3ma_notifications_high_v2';
+const String _androidNotificationChannelName = 'NEJMA Notifications';
+const String _androidNotificationChannelDescription =
+    'General notifications for reservations, messages, and nearby donations.';
+const int _maxAndroidNotificationId = 2147483647;
+
+int _notificationIdFromTime() {
+  return DateTime.now().millisecondsSinceEpoch.remainder(
+    _maxAndroidNotificationId,
+  );
+}
+
+int _notificationIdForMessage(RemoteMessage message) {
+  return (message.messageId?.hashCode ?? _notificationIdFromTime()) &
+      _maxAndroidNotificationId;
+}
+
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
   } catch (_) {
     // Firebase may already be initialized in the background isolate.
   }
   debugPrint("Handling a background message: ${message.messageId}");
+  debugPrint("Message Data: ${message.data}");
+  if (message.notification != null) {
+    debugPrint(
+      "Message Notification: Title=${message.notification?.title}, Body=${message.notification?.body}",
+    );
+  }
+
+  // Android displays FCM "notification" payloads automatically in the
+  // background. Data-only pushes need us to create a visible notification.
+  if (message.notification == null) {
+    debugPrint(
+      "PushNotifications: Data-only background message detected, triggering local notification.",
+    );
+    await _showBackgroundDataNotification(message);
+  }
+}
+
+/// Top-level callback for flutter_local_notifications background taps.
+/// Must be a top-level or static function annotated with @pragma.
+@pragma('vm:entry-point')
+void onDidReceiveBackgroundNotificationResponse(NotificationResponse response) {
+  debugPrint(
+    '👆 PushNotifications [BG isolate]: Notification tapped with payload: ${response.payload}',
+  );
+  // Navigation is handled when the app relaunches via getNotificationAppLaunchDetails.
+}
+
+@pragma('vm:entry-point')
+Future<void> _showBackgroundDataNotification(RemoteMessage message) async {
+  final title = _messageTitle(message);
+  final body = _messageBody(message);
+
+  if (title.isEmpty && body.isEmpty) {
+    debugPrint(
+      '⚠️ PushNotifications: Background data message had no title/body',
+    );
+    return;
+  }
+
+  const channel = AndroidNotificationChannel(
+    _androidNotificationChannelId,
+    _androidNotificationChannelName,
+    description: _androidNotificationChannelDescription,
+    importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
+    showBadge: true,
+  );
+  final localNotifications = FlutterLocalNotificationsPlugin();
+
+  const androidSettings = AndroidInitializationSettings(
+    '@drawable/ic_notification',
+  );
+  const iosSettings = DarwinInitializationSettings();
+  const settings = InitializationSettings(
+    android: androidSettings,
+    iOS: iosSettings,
+  );
+
+  await localNotifications.initialize(
+    settings,
+    onDidReceiveBackgroundNotificationResponse:
+        onDidReceiveBackgroundNotificationResponse,
+  );
+  await localNotifications
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >()
+      ?.createNotificationChannel(channel);
+
+  await localNotifications.show(
+    _notificationIdForMessage(message),
+    title,
+    body,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        channel.id,
+        channel.name,
+        channelDescription: channel.description,
+        importance: Importance.max,
+        priority: Priority.high,
+        icon: '@drawable/ic_notification',
+        color: const Color(0xFF1E4D35),
+        playSound: true,
+        enableVibration: true,
+        visibility: NotificationVisibility.public,
+        category: AndroidNotificationCategory.status,
+      ),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    ),
+    payload: jsonEncode({
+      ..._normalizedMessageData(message.data),
+      'title': title,
+      'body': body,
+    }),
+  );
+}
+
+String _messageTitle(RemoteMessage message) {
+  final data = _normalizedMessageData(message.data);
+  return message.notification?.title ??
+      data['title']?.toString() ??
+      data['notificationTitle']?.toString() ??
+      'New Notification';
+}
+
+String _messageBody(RemoteMessage message) {
+  final data = _normalizedMessageData(message.data);
+  return message.notification?.body ??
+      data['body']?.toString() ??
+      data['notificationBody']?.toString() ??
+      data['message']?.toString() ??
+      '';
+}
+
+Map<String, dynamic> _normalizedMessageData(Map<String, dynamic> data) {
+  final normalized = Map<String, dynamic>.from(data);
+  final rawData = normalized['data'];
+
+  if (rawData is String && rawData.trim().isNotEmpty) {
+    try {
+      final decoded = jsonDecode(rawData);
+      if (decoded is Map<String, dynamic>) {
+        normalized.addAll(decoded);
+      } else if (decoded is Map) {
+        normalized.addAll(Map<String, dynamic>.from(decoded));
+      }
+    } catch (_) {
+      // Keep the original payload if backend data is not JSON.
+    }
+  }
+
+  return normalized;
 }
 
 class PushDebugInfo {
@@ -28,6 +182,7 @@ class PushDebugInfo {
     this.isInitialized = false,
     this.permissionStatus = 'Unknown',
     this.authStatus = 'Unknown',
+    this.localNotificationStatus = 'Unknown',
     this.currentToken = '',
     this.backendSyncStatus = 'Not synced yet',
     this.lastEvent = 'Nothing received yet',
@@ -41,6 +196,7 @@ class PushDebugInfo {
   final bool isInitialized;
   final String permissionStatus;
   final String authStatus;
+  final String localNotificationStatus;
   final String currentToken;
   final String backendSyncStatus;
   final String lastEvent;
@@ -54,6 +210,7 @@ class PushDebugInfo {
     bool? isInitialized,
     String? permissionStatus,
     String? authStatus,
+    String? localNotificationStatus,
     String? currentToken,
     String? backendSyncStatus,
     String? lastEvent,
@@ -67,6 +224,8 @@ class PushDebugInfo {
       isInitialized: isInitialized ?? this.isInitialized,
       permissionStatus: permissionStatus ?? this.permissionStatus,
       authStatus: authStatus ?? this.authStatus,
+      localNotificationStatus:
+          localNotificationStatus ?? this.localNotificationStatus,
       currentToken: currentToken ?? this.currentToken,
       backendSyncStatus: backendSyncStatus ?? this.backendSyncStatus,
       lastEvent: lastEvent ?? this.lastEvent,
@@ -74,8 +233,7 @@ class PushDebugInfo {
           lastNotificationTitle ?? this.lastNotificationTitle,
       lastNotificationBody: lastNotificationBody ?? this.lastNotificationBody,
       lastNotificationType: lastNotificationType ?? this.lastNotificationType,
-      lastNotificationData:
-          lastNotificationData ?? this.lastNotificationData,
+      lastNotificationData: lastNotificationData ?? this.lastNotificationData,
       lastError: lastError ?? this.lastError,
     );
   }
@@ -83,10 +241,13 @@ class PushDebugInfo {
 
 class PushNotificationService {
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'ne3ma_notifications',
-    'NEJMA Notifications',
-    description: 'General notifications for reservations, messages, and nearby donations.',
+    _androidNotificationChannelId,
+    _androidNotificationChannelName,
+    description: _androidNotificationChannelDescription,
     importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
+    showBadge: true,
   );
 
   static final PushNotificationService _instance =
@@ -102,21 +263,22 @@ class PushNotificationService {
   final DonationRepository _donationRepository = DonationRepository();
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-  final ValueNotifier<PushDebugInfo> debugInfo =
-      ValueNotifier(const PushDebugInfo());
+  final ValueNotifier<PushDebugInfo> debugInfo = ValueNotifier(
+    const PushDebugInfo(),
+  );
   bool _isInitialized = false;
   RemoteMessage? _pendingLaunchMessage;
 
   void logDebugSnapshot({String reason = 'manual snapshot'}) {
     final info = debugInfo.value;
-    final tokenPreview =
-        info.currentToken.isEmpty
-            ? 'empty'
-            : '${info.currentToken.substring(0, info.currentToken.length < 18 ? info.currentToken.length : 18)}...';
+    final tokenPreview = info.currentToken.isEmpty
+        ? 'empty'
+        : '${info.currentToken.substring(0, info.currentToken.length < 18 ? info.currentToken.length : 18)}...';
     debugPrint('━━━━━━━━━━ PUSH DEBUG SNAPSHOT ━━━━━━━━━━');
     debugPrint('Reason: $reason');
     debugPrint('Initialized: ${info.isInitialized}');
     debugPrint('Permission: ${info.permissionStatus}');
+    debugPrint('Local notifications: ${info.localNotificationStatus}');
     debugPrint('Auth: ${info.authStatus}');
     debugPrint('Token: $tokenPreview');
     debugPrint('Backend sync: ${info.backendSyncStatus}');
@@ -164,9 +326,6 @@ class PushNotificationService {
       badge: true,
       sound: true,
     );
-
-    // 2. Set the background messaging handler
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     final initialMessage = await messaging.getInitialMessage();
     if (initialMessage != null) {
@@ -293,8 +452,9 @@ class PushNotificationService {
   Future<void> refreshDebugInfo() async {
     debugPrint('🔍 PushNotifications: Refreshing debug info...');
     try {
-      final settings =
-          await FirebaseMessaging.instance.getNotificationSettings();
+      final settings = await FirebaseMessaging.instance
+          .getNotificationSettings();
+      final localNotificationsEnabled = await _areLocalNotificationsEnabled();
       final token = await FirebaseMessaging.instance.getToken();
       final accessToken = await GraphQLClient.getAccessToken();
       _patchDebugInfo(
@@ -303,10 +463,14 @@ class PushNotificationService {
           permissionStatus: _authorizationStatusLabel(
             settings.authorizationStatus,
           ),
-          authStatus:
-              accessToken == null || accessToken.isEmpty
-                  ? 'No access token'
-                  : 'Authenticated',
+          localNotificationStatus: localNotificationsEnabled == null
+              ? 'Unknown'
+              : localNotificationsEnabled
+              ? 'Enabled'
+              : 'Disabled',
+          authStatus: accessToken == null || accessToken.isEmpty
+              ? 'No access token'
+              : 'Authenticated',
           currentToken: token ?? '',
           lastEvent: 'Debug state refreshed',
         ),
@@ -330,11 +494,18 @@ class PushNotificationService {
       badge: true,
       sound: true,
     );
+    await _requestLocalNotificationPermission();
+    final localNotificationsEnabled = await _areLocalNotificationsEnabled();
     _patchDebugInfo(
       (current) => current.copyWith(
         permissionStatus: _authorizationStatusLabel(
           settings.authorizationStatus,
         ),
+        localNotificationStatus: localNotificationsEnabled == null
+            ? 'Unknown'
+            : localNotificationsEnabled
+            ? 'Enabled'
+            : 'Disabled',
         lastEvent: 'Notification permission requested again',
       ),
     );
@@ -347,7 +518,7 @@ class PushNotificationService {
   Future<void> showLocalDebugNotification() async {
     debugPrint('🧪 PushNotifications: Showing local debug notification...');
     await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch,
+      _notificationIdFromTime(),
       'Push debug test',
       'If you see this, local notifications are working on this device.',
       NotificationDetails(
@@ -357,8 +528,12 @@ class PushNotificationService {
           channelDescription: _channel.description,
           importance: Importance.max,
           priority: Priority.high,
-          icon: '@mipmap/launcher_icon',
+          icon: '@drawable/ic_notification',
           color: const Color(0xFF1E4D35),
+          playSound: true,
+          enableVibration: true,
+          visibility: NotificationVisibility.public,
+          category: AndroidNotificationCategory.status,
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
@@ -380,9 +555,7 @@ class PushNotificationService {
         lastNotificationBody:
             'If you see this, local notifications are working on this device.',
         lastNotificationType: 'LOCAL_DEBUG',
-        lastNotificationData: const <String, dynamic>{
-          'source': 'local-debug',
-        },
+        lastNotificationData: const <String, dynamic>{'source': 'local-debug'},
       ),
     );
     logDebugSnapshot(reason: 'local debug notification');
@@ -405,7 +578,7 @@ class PushNotificationService {
 
   Future<void> _initLocalNotifications() async {
     const androidSettings = AndroidInitializationSettings(
-      '@mipmap/launcher_icon',
+      '@drawable/ic_notification',
     );
     const iosSettings = DarwinInitializationSettings();
     const settings = InitializationSettings(
@@ -431,6 +604,8 @@ class PushNotificationService {
 
         unawaited(_handleNotificationTapData(data));
       },
+      onDidReceiveBackgroundNotificationResponse:
+          onDidReceiveBackgroundNotificationResponse,
     );
 
     await _localNotifications
@@ -438,6 +613,22 @@ class PushNotificationService {
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.createNotificationChannel(_channel);
+  }
+
+  Future<void> _requestLocalNotificationPermission() async {
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.requestNotificationsPermission();
+  }
+
+  Future<bool?> _areLocalNotificationsEnabled() async {
+    return _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.areNotificationsEnabled();
   }
 
   Future<void> _handleNotificationTap(RemoteMessage message) async {
@@ -532,9 +723,7 @@ class PushNotificationService {
     }
 
     if (context.mounted) {
-      debugPrint(
-        '↩️ PushNotifications: Falling back to route $fallbackRoute',
-      );
+      debugPrint('↩️ PushNotifications: Falling back to route $fallbackRoute');
       context.go(fallbackRoute);
     }
   }
@@ -550,7 +739,7 @@ class PushNotificationService {
     }
 
     final payload = jsonEncode({
-      ...message.data,
+      ..._normalizedMessageData(message.data),
       'title': title,
       'body': body,
     });
@@ -559,7 +748,7 @@ class PushNotificationService {
     );
 
     await _localNotifications.show(
-      message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch,
+      _notificationIdForMessage(message),
       title,
       body,
       NotificationDetails(
@@ -569,8 +758,12 @@ class PushNotificationService {
           channelDescription: _channel.description,
           importance: Importance.max,
           priority: Priority.high,
-          icon: '@mipmap/launcher_icon',
+          icon: '@drawable/ic_notification',
           color: const Color(0xFF1E4D35),
+          playSound: true,
+          enableVibration: true,
+          visibility: NotificationVisibility.public,
+          category: AndroidNotificationCategory.status,
           styleInformation: const BigTextStyleInformation(''),
         ),
         iOS: const DarwinNotificationDetails(
@@ -590,9 +783,7 @@ class PushNotificationService {
   }
 
   String _bodyForMessage(RemoteMessage message) {
-    return message.notification?.body ??
-        message.data['body']?.toString() ??
-        '';
+    return message.notification?.body ?? message.data['body']?.toString() ?? '';
   }
 
   Map<String, dynamic>? _decodePayload(String payload) {
@@ -650,10 +841,9 @@ class PushNotificationService {
     }
 
     try {
-      ProviderScope.containerOf(
-        navContext,
-        listen: false,
-      ).read(notificationsProvider.notifier).fetchNotifications(background: true);
+      ProviderScope.containerOf(navContext, listen: false)
+          .read(notificationsProvider.notifier)
+          .fetchNotifications(background: true);
     } catch (e) {
       debugPrint('⚠️ PushNotifications: Could not refresh notifications - $e');
     }

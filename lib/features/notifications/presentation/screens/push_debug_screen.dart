@@ -35,9 +35,9 @@ class _PushDebugScreenState extends State<PushDebugScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
     } catch (e) {
       if (!mounted) {
         return;
@@ -53,9 +53,9 @@ class _PushDebugScreenState extends State<PushDebugScreen> {
 
   Future<void> _copyToken(String token) async {
     if (token.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No FCM token yet.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No FCM token yet.')));
       return;
     }
 
@@ -150,7 +150,9 @@ class _PushDebugScreenState extends State<PushDebugScreen> {
                       label: 'Print Snapshot',
                       icon: Icons.terminal_rounded,
                       onTap: () {
-                        _service.logDebugSnapshot(reason: 'debug screen button');
+                        _service.logDebugSnapshot(
+                          reason: 'debug screen button',
+                        );
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Push snapshot printed to console.'),
@@ -336,10 +338,7 @@ class _HeroNoteCard extends StatelessWidget {
           const SizedBox(height: AppSizes.sm),
           Text(
             'Permission: ${info.permissionStatus}  |  Sync: ${info.backendSyncStatus}',
-            style: const TextStyle(
-              color: Colors.white,
-              height: 1.45,
-            ),
+            style: const TextStyle(color: Colors.white, height: 1.45),
           ),
         ],
       ),
@@ -365,6 +364,12 @@ class _StatusCard extends StatelessWidget {
             color: info.isInitialized ? AppColors.success : AppColors.warning,
           ),
           _StatusBadge(label: info.permissionStatus, color: AppColors.primary),
+          _StatusBadge(
+            label: 'Local: ${info.localNotificationStatus}',
+            color: info.localNotificationStatus == 'Enabled'
+                ? AppColors.success
+                : AppColors.warning,
+          ),
           _StatusBadge(label: info.authStatus, color: AppColors.secondary),
         ],
       ),

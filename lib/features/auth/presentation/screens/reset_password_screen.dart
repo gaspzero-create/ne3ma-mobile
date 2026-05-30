@@ -9,7 +9,8 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
   const ResetPasswordScreen({super.key});
 
   @override
-  ConsumerState<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+  ConsumerState<ResetPasswordScreen> createState() =>
+      _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
@@ -37,9 +38,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       return;
     }
     if (password != confirm) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
       return;
     }
     if (otp.length != 6) {
@@ -50,11 +51,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     }
 
     setState(() => _isLoading = true);
-    final success = await ref.read(authProvider.notifier).resetPassword(
-          email: email,
-          otp: otp,
-          newPassword: password,
-        );
+    final success = await ref
+        .read(authProvider.notifier)
+        .resetPassword(email: email, otp: otp, newPassword: password);
     if (!mounted) return;
     setState(() => _isLoading = false);
 
@@ -110,7 +109,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
             ),
             const SizedBox(height: 32),
             GaspButton(
-              text: _isLoading ? 'Saving...' : 'Update password',
+              label: 'Update password',
+              isLoading: _isLoading,
               onPressed: _isLoading ? null : _submit,
             ),
           ],
