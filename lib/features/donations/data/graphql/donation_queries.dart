@@ -73,15 +73,8 @@ class DonationQueries {
         id
         title
         description
-        donor {
-          id
-          fullName
-          avatarUrl
-          badge
-          role
-          wilaya
-          baladiya
-        }
+        # Removed donor field
+
         category {
           id
           name

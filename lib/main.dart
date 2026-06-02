@@ -13,6 +13,7 @@ import 'package:ne3ma/core/providers/locale_provider.dart';
 
 import 'package:ne3ma/core/services/push_notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:ne3ma/firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +21,9 @@ void main() async {
 
   // ── Firebase & Notifications ────────────────────
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     await PushNotificationService().init();
   } catch (e) {
     debugPrint('Firebase init failed: \$e');

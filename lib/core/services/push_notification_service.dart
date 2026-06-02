@@ -12,6 +12,7 @@ import 'package:ne3ma/features/donations/data/repositories/donation_repository.d
 import 'package:ne3ma/features/notifications/providers/notifications_provider.dart';
 import 'package:ne3ma/features/profile/data/repository/profile_repository.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:ne3ma/firebase_options.dart';
 
 const String _androidNotificationChannelId = 'ne3ma_notifications_high_v2';
 const String _androidNotificationChannelName = 'NEJMA Notifications';
@@ -33,7 +34,9 @@ int _notificationIdForMessage(RemoteMessage message) {
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (_) {
     // Firebase may already be initialized in the background isolate.
   }
@@ -335,13 +338,24 @@ class PushNotificationService {
 
     // 3. Listen to foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint('Got a message whilst in the foreground!');
-      debugPrint('Message data: ${message.data}');
+      debugPrint('🔔 Got a message whilst in the foreground!');
+      debugPrint('🔔 Message ID: ${message.messageId}');
+      debugPrint('🔔 Message data: ${jsonEncode(message.data)}');
 
-      debugPrint(
-        'Message also contained a notification: ${message.notification}',
-      );
+      if (message.notification != null) {
+        debugPrint(
+          '🔔 Message title: ${message.notification?.title}, body: ${message.notification?.body}',
+        );
+      } else {
+        debugPrint('🔔 Message has NO notification block (data-only)');
+      }
+
       _recordIncomingMessage(message, source: 'foreground');
+
+      final title = _titleForMessage(message);
+      final body = _bodyForMessage(message);
+      debugPrint('🔔 Parsed title: "$title", body: "$body"');
+
       unawaited(_showForegroundNotification(message));
       _refreshNotificationCenter();
     });
@@ -729,8 +743,10 @@ class PushNotificationService {
   }
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
-    final title = _titleForMessage(message);
-    final body = _bodyForMessage(message);
+    final data = _normalizedMessageData(message.data);
+    final title = _messageTitle(message);
+    final body = _messageBody(message);
+
     if (title.isEmpty && body.isEmpty) {
       debugPrint(
         '⚠️ PushNotifications: Foreground message had no title/body, skipping local display',
@@ -738,11 +754,7 @@ class PushNotificationService {
       return;
     }
 
-    final payload = jsonEncode({
-      ..._normalizedMessageData(message.data),
-      'title': title,
-      'body': body,
-    });
+    final payload = jsonEncode({...data, 'title': title, 'body': body});
     debugPrint(
       '🔔 PushNotifications: Showing foreground notification title="$title" payload=$payload',
     );
@@ -777,13 +789,11 @@ class PushNotificationService {
   }
 
   String _titleForMessage(RemoteMessage message) {
-    return message.notification?.title ??
-        message.data['title']?.toString() ??
-        'New Notification';
+    return _messageTitle(message);
   }
 
   String _bodyForMessage(RemoteMessage message) {
-    return message.notification?.body ?? message.data['body']?.toString() ?? '';
+    return _messageBody(message);
   }
 
   Map<String, dynamic>? _decodePayload(String payload) {
