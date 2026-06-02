@@ -149,6 +149,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       case NotificationType.warning:
         context.go('/profile-tab');
         return;
+      case NotificationType.foodSaverHelpRequest:
+      case NotificationType.foodSaverHelpResponse:
+        final requestId = notification.foodSaverHelpRequestId;
+        if (requestId != null && requestId.isNotEmpty) {
+          context.push('/food-saver-help/$requestId');
+        } else {
+          context.go('/food-saver-help');
+        }
+        return;
       case NotificationType.reservation:
       case NotificationType.cancellation:
       case NotificationType.completion:

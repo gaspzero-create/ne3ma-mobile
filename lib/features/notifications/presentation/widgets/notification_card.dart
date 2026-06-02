@@ -204,6 +204,18 @@ class _TypeIcon extends StatelessWidget {
           background: AppColors.surfaceVariant,
           foreground: AppColors.primary,
         );
+      case NotificationType.foodSaverHelpRequest:
+        return const _NotificationIconConfig(
+          icon: Icons.volunteer_activism_outlined,
+          background: Color(0xFFEFF6FF),
+          foreground: Color(0xFF2563EB),
+        );
+      case NotificationType.foodSaverHelpResponse:
+        return const _NotificationIconConfig(
+          icon: Icons.rate_review_outlined,
+          background: Color(0xFFF0FDF4),
+          foreground: Color(0xFF16A34A),
+        );
       case NotificationType.unknown:
         return const _NotificationIconConfig(
           icon: Icons.notifications_none_rounded,

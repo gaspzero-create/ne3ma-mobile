@@ -7,6 +7,8 @@ enum NotificationType {
   warning,
   message,
   nearbyDonation,
+  foodSaverHelpRequest,
+  foodSaverHelpResponse,
   unknown,
 }
 
@@ -78,9 +80,7 @@ class NotificationModel {
         return decoded;
       }
       if (decoded is Map) {
-        return decoded.map(
-          (key, value) => MapEntry(key.toString(), value),
-        );
+        return decoded.map((key, value) => MapEntry(key.toString(), value));
       }
     } catch (_) {
       // Ignore malformed notification data and fall back to an empty map.
@@ -92,6 +92,11 @@ class NotificationModel {
   String? get donationId => dataMap['donationId']?.toString();
 
   String? get reservationId => dataMap['reservationId']?.toString();
+
+  String? get foodSaverHelpRequestId =>
+      dataMap['requestId']?.toString() ??
+      dataMap['foodSaverHelpRequestId']?.toString() ??
+      dataMap['helpRequestId']?.toString();
 
   static NotificationType _typeFromString(String? value) {
     switch (value) {
@@ -107,6 +112,10 @@ class NotificationModel {
         return NotificationType.message;
       case 'NEARBY_DONATION':
         return NotificationType.nearbyDonation;
+      case 'FOOD_SAVER_HELP_REQUEST':
+        return NotificationType.foodSaverHelpRequest;
+      case 'FOOD_SAVER_HELP_RESPONSE':
+        return NotificationType.foodSaverHelpResponse;
       default:
         return NotificationType.unknown;
     }

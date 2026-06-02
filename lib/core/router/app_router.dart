@@ -26,6 +26,8 @@ import 'package:ne3ma/features/profile/presentation/screens/privacy_policy_scree
 import 'package:ne3ma/features/profile/presentation/screens/terms_and_conditions_screen.dart';
 import 'package:ne3ma/features/profile/presentation/screens/help_and_support_screen.dart';
 import 'package:ne3ma/features/reports/presentation/screens/report_donation_screen.dart';
+import 'package:ne3ma/features/food_saver_help/presentation/screens/food_saver_help_list_screen.dart';
+import 'package:ne3ma/features/food_saver_help/presentation/screens/food_saver_help_detail_screen.dart';
 
 class AppRouter {
   AppRouter._();
@@ -48,6 +50,7 @@ class AppRouter {
   static const String notifications = '/notifications';
   static const String pushDebug = '/push-debug';
   static const String reportDonation = '/report-donation';
+  static const String foodSaverHelp = '/food-saver-help';
 
   static final router = GoRouter(
     initialLocation: splash,
@@ -104,10 +107,8 @@ class AppRouter {
 
       GoRoute(
         path: resetPassword,
-        pageBuilder: (context, state) => _slideRightPage(
-          state: state,
-          child: const ResetPasswordScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _slideRightPage(state: state, child: const ResetPasswordScreen()),
       ),
 
       GoRoute(
@@ -228,6 +229,25 @@ class AppRouter {
         path: '/leaderboard',
         pageBuilder: (context, state) =>
             _slideRightPage(state: state, child: const LeaderboardScreen()),
+      ),
+
+      GoRoute(
+        path: '/food-saver-help',
+        pageBuilder: (context, state) => _slideRightPage(
+          state: state,
+          child: const FoodSaverHelpListScreen(),
+        ),
+      ),
+
+      GoRoute(
+        path: '/food-saver-help/:id',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return _slideRightPage(
+            state: state,
+            child: FoodSaverHelpDetailScreen(requestId: id),
+          );
+        },
       ),
 
       //       ShellRoute(
@@ -410,6 +430,7 @@ class AppRouter {
         '/profile',
         '/profile-tab',
         '/special',
+        '/food-saver-help',
       ];
       final isGoingToProtected = protectedRoutes.any(
         (r) => state.matchedLocation.startsWith(r),
